@@ -532,3 +532,22 @@ What the logs say before I ask anything:
 - **Game 3, season 3: inspect 0.8 s after the last hang**, one peg empty. Possibly a mis-tap. Ask.
 - Several hangs passed up an immediate second fill ("fill 1 of a possible 2"), mostly in game 3.
 - Game length 4–7 min is below the 10–20 min target, but two of the games were effectively abandoned.
+
+### Debrief 2, first answers
+- **Cross-season planning is real and intended.** Game 3: "get the red cloths partially dyed so I can get
+  more of them done later", and placing cloths "where they would be good after other cloths show up". That's
+  the carry mechanic being played on purpose, which round 1 never got.
+- **An emergent strategy insight, unprompted:** "way too many blue cloths… I only need one", and next time
+  "not fulfill any red cloth patterns in the first season to avoid diluting the red in my deck". Red is both
+  the body five commissions want and a stain six of them need, so every red shipped is a red stain source
+  lost. That is a real tension in this book, and the player found it in three games.
+- **"I didn't remember exactly which cloths were in my deck and how they were painted."** The memory lives
+  on cards they can't see between seasons. The planning was sound (the Planner wins 4/4 from their season-2
+  start in game 3); what failed was executing it in season 2 without knowing what was coming.
+  ("It backfired" is the player's read; the log says the setup was fine and the follow-through wasn't.)
+- **"Ruined a ready cloth" — confirmed in the log.** Game 2, season 2, 3rd hang (21 s think): a red cloth on
+  peg 7 restained the top of the cloth on peg 11, which had just become an exact match for a commission.
+  Fill went 1 → 0, and the season ended with nothing. The preview marks changed edges, but not "this breaks
+  a match".
+- **The early inspections were giving up, "frustration (in a good way!)".** Losing was legible early enough
+  to quit, and they wanted the next game. Three games played voluntarily; round 1 was "not very motivated".
