@@ -1,4 +1,4 @@
-import type { SelvedgeState } from '../selvedge/engine.ts';
+import { isOwned, type SelvedgeState } from '../selvedge/engine.ts';
 import { ClothTile, CommissionTile } from './ClothTile.tsx';
 import type { InspectionReport } from './session.ts';
 
@@ -57,7 +57,7 @@ function placeOf(game: SelvedgeState, clothId: number): (typeof PLACES)[number] 
 
 /** Every cloth you still own, with its stains. The basket is shuffled: you know what's in it, not the order. */
 export function ClothsSheet({ game, onClose }: { game: SelvedgeState; onClose: () => void }) {
-  const owned = game.cloths.filter((cloth) => !cloth.isShipped);
+  const owned = game.cloths.filter(isOwned);
   return (
     <SheetShell title="Your cloths" onClose={onClose} closeLabel="Back to the rack">
       <p className="mt-1 text-chalk-soft">You know what's in the basket, not the order you'll draw it in.</p>

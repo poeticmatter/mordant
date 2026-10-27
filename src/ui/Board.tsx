@@ -22,6 +22,7 @@ interface BoardProps {
   onSelectCloth: (clothId: number) => void;
   onTapPeg: (cell: number) => void;
   onHang: () => void;
+  onSetAside: () => void;
   onInspectNow: () => void;
   onShowCloths: () => void;
 }
@@ -53,7 +54,7 @@ function pegViews(game: SelvedgeState, preview: HangMove | null): { pegs: (PegVi
   return { pegs, looks };
 }
 
-export function Board({ game, selectedClothId, preview, onSelectCloth, onTapPeg, onHang, onInspectNow, onShowCloths }: BoardProps) {
+export function Board({ game, selectedClothId, preview, onSelectCloth, onTapPeg, onHang, onSetAside, onInspectNow, onShowCloths }: BoardProps) {
   const view = useMemo(() => {
     const { pegs, looks } = pegViews(game, preview);
     const open = openCommissions(game);
@@ -73,7 +74,15 @@ export function Board({ game, selectedClothId, preview, onSelectCloth, onTapPeg,
         canHang={selectedClothId !== null}
         onTapPeg={onTapPeg}
       />
-      <ActionBar game={game} selectedClothId={selectedClothId} preview={preview} readyCount={view.readyIds.size} onHang={onHang} onInspectNow={onInspectNow} />
+      <ActionBar
+        game={game}
+        selectedClothId={selectedClothId}
+        preview={preview}
+        readyCount={view.readyIds.size}
+        onHang={onHang}
+        onSetAside={onSetAside}
+        onInspectNow={onInspectNow}
+      />
       <Hand game={game} selectedClothId={selectedClothId} onSelect={onSelectCloth} onShowCloths={onShowCloths} />
     </div>
   );
@@ -110,10 +119,11 @@ interface ActionBarProps {
   preview: HangMove | null;
   readyCount: number;
   onHang: () => void;
+  onSetAside: () => void;
   onInspectNow: () => void;
 }
 
-function ActionBar({ game, selectedClothId, preview, readyCount, onHang, onInspectNow }: ActionBarProps) {
+function ActionBar({ game, selectedClothId, preview, readyCount, onHang, onSetAside, onInspectNow }: ActionBarProps) {
   if (preview) {
     const touched = touchedBy(game, preview.cell);
     const hung = game.cloths[preview.clothId];
@@ -130,11 +140,17 @@ function ActionBar({ game, selectedClothId, preview, readyCount, onHang, onInspe
       </div>
     );
   }
+  const canSetAside = selectedClothId !== null && game.config.allowsSettingAside;
   return (
-    <div className="flex min-h-12 items-center gap-3">
-      <p className="flex-1 text-chalk-soft">
-        {selectedClothId === null ? 'Pick a cloth from your hand.' : 'Tap an empty peg to preview, tap again to hang.'}
+    <div className="flex min-h-12 flex-wrap items-center gap-3">
+      <p className="min-w-40 flex-1 text-chalk-soft">
+        {selectedClothId === null ? 'Pick a cloth from your hand.' : 'Tap an empty peg to see what it would stain.'}
       </p>
+      {canSetAside && (
+        <button type="button" onClick={onSetAside} className="rounded-sm border border-slate-line px-4 py-3">
+          Set aside for good
+        </button>
+      )}
       {canInspectEarly(game) && (
         <button type="button" onClick={onInspectNow} className="rounded-sm border border-weld px-4 py-3 font-semibold text-weld">
           Inspect now{readyCount > 0 ? ` (${readyCount})` : ''}
@@ -153,27 +169,72 @@ interface HandProps {
 
 function Hand({ game, selectedClothId, onSelect, onShowCloths }: HandProps) {
   return (
-    <section aria-label="Your hand" className="grid grid-cols-4 items-end gap-2">
-      {game.hand.map((clothId) => {
-        const cloth = game.cloths[clothId];
-        const isSelected = clothId === selectedClothId;
-        return (
-          <button
-            key={clothId}
-            type="button"
-            onClick={() => onSelect(clothId)}
-            aria-pressed={isSelected}
-            aria-label={`Pick up the ${dyeName(cloth.body).toLowerCase()} cloth`}
-            className={`rounded-sm p-1.5 transition-transform ${isSelected ? '-translate-y-2 bg-slate-raised outline-2 outline-chalk' : 'bg-slate-deep'}`}
-          >
-            <ClothTile body={cloth.body} edges={cloth.edges} />
-          </button>
-        );
-      })}
-      <button type="button" onClick={onShowCloths} className="flex aspect-square flex-col items-center justify-center rounded-sm border border-slate-line text-xs text-chalk-soft">
-        <span className="text-2xl font-extrabold text-chalk">{game.drawPile.length}</span>
-        in basket
-      </button>
+    <div className="flex flex-col gap-3">
+      <section aria-label="Your hand" className="grid grid-cols-4 items-end gap-2">
+        {game.hand.map((clothId) => {
+          const cloth = game.cloths[clothId];
+          const isSelected = clothId === selectedClothId;
+          return (
+            <button
+              key={clothId}
+              type="button"
+              onClick={() => onSelect(clothId)}
+              aria-pressed={isSelected}
+              aria-label={`Pick up the ${dyeName(cloth.body).toLowerCase()} cloth`}
+              className={`rounded-sm p-1.5 transition-transform ${isSelected ? '-translate-y-2 bg-slate-raised outline-2 outline-chalk' : 'bg-slate-deep'}`}
+            >
+              <ClothTile body={cloth.body} edges={cloth.edges} />
+            </button>
+          );
+        })}
+      </section>
+      <Basket game={game} onShowCloths={onShowCloths} />
+    </div>
+  );
+}
+
+/** Basket cloths sorted by colour, then stains: what you will draw is public, the order you draw it in is not. */
+function basketCloths(game: SelvedgeState) {
+  const sortKey = (clothId: number) => {
+    const cloth = game.cloths[clothId];
+    return [cloth.body, ...cloth.edges.map((edge) => (edge === null ? -1 : edge))];
+  };
+  return game.drawPile.slice().sort((first, second) => {
+    const firstKey = sortKey(first);
+    const secondKey = sortKey(second);
+    const differingIndex = firstKey.findIndex((value, index) => value !== secondKey[index]);
+    return differingIndex === -1 ? first - second : firstKey[differingIndex] - secondKey[differingIndex];
+  });
+}
+
+/**
+ * Playtest 2: a count that opened the list was never tapped; the player assumed the
+ * basket was hidden. The contents are shown on the board instead.
+ */
+function Basket({ game, onShowCloths }: { game: SelvedgeState; onShowCloths: () => void }) {
+  const cloths = basketCloths(game);
+  return (
+    <section aria-label="Basket">
+      <div className="flex items-baseline justify-between">
+        <h2 className="font-semibold">
+          Basket <span className="font-normal text-chalk-soft">{cloths.length === 0 ? 'empty' : `${cloths.length}, drawn in random order`}</span>
+        </h2>
+        <button type="button" onClick={onShowCloths} className="text-sm text-chalk-soft underline underline-offset-2">
+          Bigger view
+        </button>
+      </div>
+      {cloths.length > 0 && (
+        <ul className="mt-1.5 grid grid-cols-8 gap-1">
+          {cloths.map((clothId) => {
+            const cloth = game.cloths[clothId];
+            return (
+              <li key={clothId}>
+                <ClothTile body={cloth.body} edges={cloth.edges} size="small" />
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </section>
   );
 }

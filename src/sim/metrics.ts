@@ -97,7 +97,12 @@ export function quantile(values: readonly number[], fraction: number): number {
 
 /** A target the Planner beats about 65 % of the time, so tension is measured where wins and losses both happen. */
 export function calibratedTarget(planner: readonly GameRecord[]): number {
-  return quantile(planner.map((record) => record.score), 0.35);
+  const scores = planner.map((record) => record.score);
+  const target = quantile(scores, 0.35);
+  if (scores.some((score) => score < target)) return target;
+  // Every game reached the percentile, so nothing would count as a loss; use the next score up.
+  const higher = scores.filter((score) => score > target);
+  return higher.length === 0 ? target : Math.min(...higher);
 }
 
 /** Area under the ROC curve for "score so far at this point of the game predicts reaching `target`". */

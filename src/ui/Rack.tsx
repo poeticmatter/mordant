@@ -42,16 +42,9 @@ export function Rack({ game, pegs, previewCell, shippingCells, canHang, onTapPeg
           );
         }
         return (
-          <button
-            key={cell}
-            type="button"
-            disabled={!isPreview}
-            onClick={() => onTapPeg(cell)}
-            aria-label={isPreview ? 'Hang it here' : undefined}
-            className={isPreview ? 'rounded-[4px] outline-2 outline-offset-2 outline-chalk' : ''}
-          >
+          <div key={cell} className={isPreview ? 'rounded-[4px] outline-2 outline-offset-2 outline-chalk' : ''}>
             <ClothTile body={peg.body} edges={peg.edges} freshSides={peg.freshSides} isGhost={isPreview} isShipping={shippingCells.has(cell)} />
-          </button>
+          </div>
         );
       })}
     </section>

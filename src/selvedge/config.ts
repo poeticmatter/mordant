@@ -12,7 +12,11 @@ export const RULES_V6: SelvedgeConfig = {
   fixedEdgesPerCommission: [2, 2, 3, 3, 3, 4, 4, 4],
   carriesMemoryBetweenSeasons: true,
   allowsEarlyInspection: true,
+  allowsSettingAside: false,
 };
+
+/** v7 (playtest 2): "discard blue cloths, as soon as I dyed all the blue edges I needed". */
+export const RULES_V7: SelvedgeConfig = { ...RULES_V6, version: 'v7', allowsSettingAside: true };
 
 /** Difficulty probes for v6 tuning; kept so the journal's numbers can be reproduced. */
 export const V6_PROBES: readonly SelvedgeConfig[] = [

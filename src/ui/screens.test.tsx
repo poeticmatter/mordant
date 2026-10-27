@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import { RULES_V6 } from '../selvedge/config.ts';
+import { RULES_V6, RULES_V7 } from '../selvedge/config.ts';
 import { applyMove, createGame, legalMoves, type HangMove, type SelvedgeState } from '../selvedge/engine.ts';
 import { Board } from './Board.tsx';
 import { formatLogForExport, parseExportedMoves, startLog, withFinalScore, withMove } from './gameLog.ts';
@@ -9,6 +9,22 @@ import { inspectionAfter, replayGame, type InspectionReport } from './session.ts
 import { ClothsSheet, FinalTally, InspectionSheet } from './Sheets.tsx';
 
 const noop = () => {};
+
+function renderBoard(game: SelvedgeState, selectedClothId: number | null, preview: HangMove | null = null): string {
+  return renderToStaticMarkup(
+    <Board
+      game={game}
+      selectedClothId={selectedClothId}
+      preview={preview}
+      onSelectCloth={noop}
+      onTapPeg={noop}
+      onHang={noop}
+      onSetAside={noop}
+      onInspectNow={noop}
+      onShowCloths={noop}
+    />,
+  );
+}
 
 function firstHang(state: SelvedgeState): HangMove {
   return legalMoves(state).find((move): move is HangMove => move.kind === 'hang')!;
@@ -29,18 +45,27 @@ describe('screens render from real game states', () => {
     let game = createGame(3, RULES_V6);
     for (let step = 0; step < 4; step++) game = applyMove(game, firstHang(game));
     const preview = firstHang(game);
-    const html = renderToStaticMarkup(
-      <Board game={game} selectedClothId={preview.clothId} preview={preview} onSelectCloth={noop} onTapPeg={noop} onHang={noop} onInspectNow={noop} onShowCloths={noop} />,
-    );
-    expect(html).toContain('Hang it');
+    expect(renderBoard(game, preview.clothId, preview)).toContain('Hang it');
   });
 
   it('offers an early inspection once something is hung', () => {
     const game = applyMove(createGame(3, RULES_V6), firstHang(createGame(3, RULES_V6)));
-    const html = renderToStaticMarkup(
-      <Board game={game} selectedClothId={null} preview={null} onSelectCloth={noop} onTapPeg={noop} onHang={noop} onInspectNow={noop} onShowCloths={noop} />,
-    );
-    expect(html).toContain('Inspect now');
+    expect(renderBoard(game, null)).toContain('Inspect now');
+  });
+
+  it('shows the basket contents on the board', () => {
+    const game = createGame(3, RULES_V6);
+    expect(renderBoard(game, null)).toContain(`${game.drawPile.length}, drawn in random order`);
+  });
+
+  it('offers to set a picked cloth aside under v7 rules', () => {
+    const game = createGame(3, RULES_V7);
+    expect(renderBoard(game, game.hand[0])).toContain('Set aside for good');
+  });
+
+  it('does not offer setting aside under v6 rules', () => {
+    const game = createGame(3, RULES_V6);
+    expect(renderBoard(game, game.hand[0])).not.toContain('Set aside');
   });
 
   it('reports the first inspection', () => {
@@ -67,6 +92,14 @@ describe('screens render from real game states', () => {
 });
 
 describe('exported logs', () => {
+  it('replay set-aside moves', () => {
+    const start = createGame(77, RULES_V7);
+    const moves = [{ kind: 'setAside' as const, clothId: start.hand[0] }];
+    const game = applyMove(start, moves[0]);
+    const log = withMove(startLog(RULES_V7.version, 77), moves[0]);
+    expect(JSON.stringify(replayGame(77, parseExportedMoves(formatLogForExport([log])), RULES_V7))).toBe(JSON.stringify(game));
+  });
+
   it('replay to the exact game that was played, early inspections included', () => {
     let game = createGame(4242, RULES_V6);
     let log = startLog(RULES_V6.version, 4242);

@@ -551,3 +551,85 @@ What the logs say before I ask anything:
   a match".
 - **The early inspections were giving up, "frustration (in a good way!)".** Losing was legible early enough
   to quit, and they wanted the next game. Three games played voluntarily; round 1 was "not very motivated".
+
+### Debrief 2, second answers
+- **The ruined cloth was a double tap**, not a misread. "Tap the peg again to hang" turns a double tap into
+  a hang. That's a UI bug, not a rules problem, so I withdraw the "warn when a hang breaks a ready match" idea.
+- **Never looked for the basket contents:** "I assumed the information was not available and part of the
+  game was to deal with what I am dealt." The basket count opens a full list, but a number with "in
+  basket" under it doesn't read as a button. So the memory was legible in principle and invisible in
+  practice: the same failure as round 1's names, one layer down.
+- **The player wants to shape the deck:** "discard blue cloths, probably as soon as I dyed all the blue
+  edges I needed." Their round-1 description already called it "a deck building game". The urge is
+  specific and timed, so it's a real decision: a cloth is worth keeping exactly as long as its colour is
+  still needed as a stain somewhere.
+- **One sentence: "A spatial puzzle about dying cloths."** Not "tile-matching", which was the risk. But
+  the edges remembering didn't make it in either.
+- **Length:** they had the time but were ill: "my brain isn't handling the puzzle". They want to play again.
+  The cognitive load is high. Showing the basket should lower it, since nothing will need remembering.
+
+### What changes (iteration 7)
+1. **Hanging needs the "Hang it" button.** A second tap on the previewed peg no longer hangs.
+2. **The basket is shown on the board,** as small tiles under the hand, sorted by colour (the draw order
+   stays hidden). The memory you plan around is in view instead of behind a tap.
+3. **Rule prototype: set a cloth aside.** Instead of hanging, retire a cloth from your hand for good and draw
+   a replacement. Hypotheses:
+   - it becomes a real decision (the Planner uses it, but not every turn);
+   - the player's own heuristic ("drop a colour once its stain work is done") beats Greedy;
+   - Greedy still can't win;
+   - carried stains still matter.
+
+   Kept only if the sims say so; otherwise v6 rules stay and only fixes 1–2 ship.
+
+### Iteration 7 — v7: set a cloth aside (from the debrief)
+**Change.** Instead of hanging, you may set a cloth in hand aside for good and draw another. The game ends
+early if you run out of cloths.
+
+The UI changes ship either way:
+- the "Hang it" button is the only way to hang;
+- the basket is shown on the board, sorted by colour.
+
+**Bots.** Greedy never sets aside, since it has no immediate value. The human-proxy uses the playtester's
+rule: set aside a cloth whose colour no open commission still needs as a body or a missing stain, unless a
+hang fills more now. I also probed count-based rules ("keep 1/2/3 of a colour nobody wants as a body"):
+- 1,000 games each, mean 4.88–4.95, 0.8–1.2 % wins;
+- the same as the colour rule within noise.
+
+| Metric | Target | v6 | v7 |
+|---|---|---|---|
+| Planner wins / mean | 55–80 % | 71 % / 7.69 | 60 % / 7.60 ✅ |
+| Planner ×4 wins | > Planner | 85 % | 68 % ✅ |
+| Proxy over Greedy | > 0 | +0.70 SD | +0.74 SD ✅ |
+| Planner over proxy | (gap; wider is a warning) | 5.56 SD | 5.33 SD ✅ narrower |
+| M13 Greedy / proxy wins | ≤ 15 % | 0.1 % / 0.4 % | 0.1 % / 1.1 % ✅ |
+| M5 memory-blind drop | ≥ 0.5 SD | 2.34 (6 % wins) | 2.76 (3 % wins) ✅ |
+| M6 no-carry delta | ≥ 0.5 SD | 2.32 (8 % wins) | 2.27 (7 % wins) ✅ |
+| M7 random placement | ≥ 1 SD | 10.2 | 9.9 ✅ |
+| M4 trivial turns | ≤ 20 % | 10.6 % | 6.6 % ✅ |
+| M8 top strategy / entropy | ≤ 50 % / ≥ 0.6 | 72 % fresh / 0.86 | 63 % fresh / 0.95 ⚠️ better |
+| M9 tension AUC @50 / @75 (target: full book) | ≤ .80 / .92 | .57 / .70 | .52 / .59 ✅ |
+| M11 decisions | 35–60 | 35.2 | 33.9 ~ |
+| M12 visible changes / move | 1–3 | 1.23 | 0.99 ~ (set-asides change nothing on the rack) |
+
+The Planner sets aside 4.35 cloths a game: 4.05 in wins and 4.8 in losses.
+
+**Reading.** Setting aside doesn't make the game easier for any bot. The Planner does slightly worse with
+it. Part of that is search noise: its rollouts sometimes throw away cloths at random. But it also uses the
+move a lot and does worse when it uses it more, which is what a real temptation looks like.
+
+Carried stains matter more, not less. With fewer cloths, the ones you keep are drawn more often, so their
+stains get reused: carried fills rise from 28 % to 37 %.
+
+The human-proxy gains a little, so the strong-to-human gap narrows: the opposite of the warning case.
+
+Two caveats:
+- The bots can't measure what the playtester actually asked for, which is agency over the deck and
+  fewer cloths to keep track of.
+- M9 printed null. Every Planner game scored 7 or 8, so the calibrated target (35th percentile) was 7. At
+  that target there are no "losses" to rank, and the AUC is undefined. I recomputed it against the real
+  goal, a full book (shown in the table). The outcome is less predictable from the halfway score than in
+  v6: more tension. `calibratedTarget` now moves up to the next score when no game falls
+  short of the percentile (with a test).
+
+**Verdict: keep, and put it to the player.** No metric got worse beyond noise, diversity improved, and
+it's the playtester's own idea, so their reaction is the real test.

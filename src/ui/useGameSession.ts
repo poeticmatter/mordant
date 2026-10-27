@@ -70,17 +70,16 @@ export function useGameSession(config: SelvedgeConfig) {
     setPreviewCell(null);
   }, []);
 
-  /** First tap on an empty peg previews the hang; a second tap on the same peg hangs it. */
+  /**
+   * Tapping an empty peg only previews; hanging always takes the "Hang it" button.
+   * Playtest 2: tap-again-to-hang turned an accidental double tap into a hang.
+   */
   const tapPeg = useCallback(
     (cell: number) => {
       if (selectedClothId === null || session.game.rack[cell] !== null) return;
-      if (previewCell === cell) {
-        play({ kind: 'hang', clothId: selectedClothId, cell });
-        return;
-      }
       setPreviewCell(cell);
     },
-    [play, previewCell, selectedClothId, session.game.rack],
+    [selectedClothId, session.game.rack],
   );
 
   const preview = useMemo<HangMove | null>(
@@ -99,6 +98,7 @@ export function useGameSession(config: SelvedgeConfig) {
     selectCloth,
     tapPeg,
     hangPreview: () => preview && play(preview),
+    setAsideSelected: () => selectedClothId !== null && play({ kind: 'setAside', clothId: selectedClothId }),
     inspectNow: () => play({ kind: 'inspect' }),
     dismissInspection: () => setSession((previous) => ({ ...previous, inspection: null, justTouched: [] })),
     newGame: (seed: number = randomSeed()) => {

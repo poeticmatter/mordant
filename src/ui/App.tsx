@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { RULES_V6 } from '../selvedge/config.ts';
+import { RULES_V7 } from '../selvedge/config.ts';
 import { completedCount } from '../selvedge/engine.ts';
 import { Board } from './Board.tsx';
 import { MenuSheet } from './MenuSheet.tsx';
@@ -10,7 +10,7 @@ import { useGameSession } from './useGameSession.ts';
 type View = 'game' | 'rules' | 'menu' | 'cloths';
 
 export function App() {
-  const session = useGameSession(RULES_V6);
+  const session = useGameSession(RULES_V7);
   const { game } = session;
   const [view, setView] = useState<View>(() => (session.currentLog.moves.length === 0 ? 'rules' : 'game'));
 
@@ -45,6 +45,7 @@ export function App() {
           onSelectCloth={session.selectCloth}
           onTapPeg={session.tapPeg}
           onHang={session.hangPreview}
+          onSetAside={session.setAsideSelected}
           onInspectNow={session.inspectNow}
           onShowCloths={() => open('cloths')}
         />

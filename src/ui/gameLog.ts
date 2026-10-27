@@ -37,15 +37,23 @@ export function withFinalScore(log: GameLog, finalScore: number): GameLog {
   return { ...log, finalScore };
 }
 
-/** `h <cloth> <peg>` for a hang, `i` for calling the inspection early. */
+/** `h <cloth> <peg>` for a hang, `a <cloth>` for setting a cloth aside, `i` for calling the inspection early. */
 export function encodeMove(move: SelvedgeMove): string {
-  return move.kind === 'hang' ? `h ${move.clothId} ${move.cell}` : 'i';
+  switch (move.kind) {
+    case 'hang':
+      return `h ${move.clothId} ${move.cell}`;
+    case 'setAside':
+      return `a ${move.clothId}`;
+    case 'inspect':
+      return 'i';
+  }
 }
 
 export function decodeMove(text: string): SelvedgeMove {
   const [kind, clothId, cell] = text.trim().split(' ');
   if (kind === 'i') return { kind: 'inspect' };
   if (kind === 'h') return { kind: 'hang', clothId: Number(clothId), cell: Number(cell) };
+  if (kind === 'a') return { kind: 'setAside', clothId: Number(clothId) };
   throw new Error(`Unrecognised logged move "${text}"`);
 }
 

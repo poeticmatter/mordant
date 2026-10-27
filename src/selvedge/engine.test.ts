@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { RULES_V6 } from './config.ts';
+import { RULES_V6, RULES_V7 } from './config.ts';
 import {
   applyMove,
   bestFill,
@@ -98,5 +98,37 @@ describe('a whole game', () => {
     state = applyMove(state, { kind: 'hang', clothId, cell: bottomRowCell });
     while (state.season === 0) state = applyMove(state, legalMoves(state).find((move) => move.kind === 'hang')!);
     expect(state.cloths[clothId].edges[BOTTOM]).toBeNull();
+  });
+});
+
+describe('setting a cloth aside (v7)', () => {
+  it('is not offered under v6 rules', () => {
+    expect(legalMoves(createGame(3, RULES_V6)).some((move) => move.kind === 'setAside')).toBe(false);
+  });
+
+  it('removes the cloth from the game and draws a replacement', () => {
+    const start = createGame(3, RULES_V7);
+    const clothId = start.hand[0];
+    const after = applyMove(start, { kind: 'setAside', clothId });
+    expect({ isSetAside: after.cloths[clothId].isSetAside, handSize: after.hand.length, inHand: after.hand.includes(clothId) }).toEqual({
+      isSetAside: true,
+      handSize: start.config.handSize,
+      inHand: false,
+    });
+  });
+
+  it('never deals a set-aside cloth again in later seasons', () => {
+    let state = createGame(3, RULES_V7);
+    const clothId = state.hand[0];
+    state = applyMove(state, { kind: 'setAside', clothId });
+    state = applyMove(state, { kind: 'hang', clothId: state.hand[0], cell: 0 });
+    state = applyMove(state, { kind: 'inspect' });
+    expect([...state.hand, ...state.drawPile]).not.toContain(clothId);
+  });
+
+  it('ends the game when every cloth has been set aside', () => {
+    let state = createGame(3, RULES_V7);
+    while (!state.isOver) state = applyMove(state, { kind: 'setAside', clothId: state.hand[0] });
+    expect(state.cloths.every((cloth) => cloth.isSetAside)).toBe(true);
   });
 });

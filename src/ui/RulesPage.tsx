@@ -56,6 +56,16 @@ export function RulesPage({ config, onClose }: { config: SelvedgeConfig; onClose
         hung in a corner keeps the two edges facing the frame exactly as they are.
       </p>
 
+      {config.allowsSettingAside && (
+        <>
+          <h3 className="mt-6 text-xl font-semibold">Setting a cloth aside</h3>
+          <p className="mt-1">
+            Instead of hanging the cloth you picked, you can set it aside for good and draw another. It never comes back,
+            so it can't stain anything again, either.
+          </p>
+        </>
+      )}
+
       <button type="button" onClick={onClose} className="mt-8 w-full rounded-sm bg-weld py-3 font-semibold text-slate-deep">
         Back to the rack
       </button>

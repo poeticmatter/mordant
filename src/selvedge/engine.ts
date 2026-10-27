@@ -21,6 +21,8 @@ export interface SelvedgeConfig {
   /** Ablation switch: when false, every edge is washed clean at each season start. */
   carriesMemoryBetweenSeasons: boolean;
   allowsEarlyInspection: boolean;
+  /** v7: a cloth in hand can be set aside for good instead of hung. */
+  allowsSettingAside: boolean;
 }
 
 export interface Cloth {
@@ -32,6 +34,8 @@ export interface Cloth {
   /** Season each edge was last stained in, so carried stains can be told from fresh ones. */
   edgeSeasons: (number | null)[];
   isShipped: boolean;
+  /** Removed from the game by choice; never drawn again. */
+  isSetAside: boolean;
 }
 
 export interface Commission {
@@ -44,7 +48,7 @@ export interface Commission {
   filledWith: { clothId: number; edgeSeasons: (number | null)[] } | null;
 }
 
-export type SelvedgeMove = { kind: 'hang'; clothId: number; cell: number } | { kind: 'inspect' };
+export type SelvedgeMove = { kind: 'hang'; clothId: number; cell: number } | { kind: 'setAside'; clothId: number } | { kind: 'inspect' };
 export type HangMove = Extract<SelvedgeMove, { kind: 'hang' }>;
 
 export interface SelvedgeState {
@@ -96,7 +100,7 @@ export function createGame(seed: number, config: SelvedgeConfig): SelvedgeState 
   const cloths: Cloth[] = [];
   for (const dye of DYES) {
     for (let copy = 0; copy < config.clothsPerDye; copy++) {
-      cloths.push({ id: cloths.length, body: dye, edges: [null, null, null, null], edgeSeasons: [null, null, null, null], isShipped: false });
+      cloths.push({ id: cloths.length, body: dye, edges: [null, null, null, null], edgeSeasons: [null, null, null, null], isShipped: false, isSetAside: false });
     }
   }
   const book = drawCommissions(config, seed >>> 0);
@@ -142,10 +146,15 @@ export function canInspectEarly(state: SelvedgeState): boolean {
   return state.config.allowsEarlyInspection && state.seasonHangs.length > 0;
 }
 
+export function isOwned(cloth: Cloth): boolean {
+  return !cloth.isShipped && !cloth.isSetAside;
+}
+
 export function legalMoves(state: SelvedgeState): SelvedgeMove[] {
   if (state.isOver) return [];
   const cells = emptyCells(state);
   const moves: SelvedgeMove[] = state.hand.flatMap((clothId) => cells.map((cell): SelvedgeMove => ({ kind: 'hang', clothId, cell })));
+  if (state.config.allowsSettingAside) moves.push(...state.hand.map((clothId): SelvedgeMove => ({ kind: 'setAside', clothId })));
   if (canInspectEarly(state)) moves.push({ kind: 'inspect' });
   return moves;
 }
@@ -154,12 +163,14 @@ export function legalMoves(state: SelvedgeState): SelvedgeMove[] {
 export function moveSignature(state: SelvedgeState, move: SelvedgeMove): string {
   if (move.kind === 'inspect') return 'inspect';
   const cloth = state.cloths[move.clothId];
-  return `${cloth.body}${cloth.edges.map((edge) => edge ?? '-').join('')}@${move.cell}`;
+  const look = `${cloth.body}${cloth.edges.map((edge) => edge ?? '-').join('')}`;
+  return move.kind === 'hang' ? `${look}@${move.cell}` : `${look}@aside`;
 }
 
 export function isLegalMove(state: SelvedgeState, move: SelvedgeMove): boolean {
   if (state.isOver) return false;
   if (move.kind === 'inspect') return canInspectEarly(state);
+  if (move.kind === 'setAside') return state.config.allowsSettingAside && state.hand.includes(move.clothId);
   return state.hand.includes(move.clothId) && state.rack[move.cell] === null;
 }
 
@@ -178,9 +189,13 @@ export function applyMoveInPlace(state: SelvedgeState, move: SelvedgeMove): void
     return;
   }
   state.hand.splice(state.hand.indexOf(move.clothId), 1);
-  state.rack[move.cell] = move.clothId;
-  stainNeighboursInPlace(state, state.rack, move.cell);
-  state.seasonHangs.push(move);
+  if (move.kind === 'setAside') {
+    state.cloths[move.clothId].isSetAside = true;
+  } else {
+    state.rack[move.cell] = move.clothId;
+    stainNeighboursInPlace(state, state.rack, move.cell);
+    state.seasonHangs.push(move);
+  }
   const drawn = state.drawPile.pop();
   if (drawn !== undefined) state.hand.push(drawn);
   const isRackFull = state.rack.every((occupant) => occupant !== null);
@@ -283,7 +298,8 @@ function finishSeasonInPlace(state: SelvedgeState): void {
   state.drawPile = [];
   state.seasonHangs = [];
   state.season++;
-  if (state.season >= state.config.seasons || openCommissions(state).length === 0) {
+  const hasClothsLeft = state.cloths.some(isOwned);
+  if (state.season >= state.config.seasons || openCommissions(state).length === 0 || !hasClothsLeft) {
     state.isOver = true;
     return;
   }
@@ -291,7 +307,7 @@ function finishSeasonInPlace(state: SelvedgeState): void {
 }
 
 function startSeasonInPlace(state: SelvedgeState): void {
-  const owned = state.cloths.filter((cloth) => !cloth.isShipped);
+  const owned = state.cloths.filter(isOwned);
   if (!state.config.carriesMemoryBetweenSeasons) {
     for (const cloth of owned) {
       cloth.edges = [null, null, null, null];

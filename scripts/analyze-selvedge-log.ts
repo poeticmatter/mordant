@@ -1,6 +1,8 @@
-// Replays exported Selvedge (v6) logs; prints the book, each move with bot comparisons, and inspections.
+// Replays exported Selvedge (v6+) logs; prints the book, each move with bot comparisons, and inspections.
 import { readFileSync } from 'node:fs';
-import { RULES_V6 } from 'file:///C:/Code/SoloDeck/src/selvedge/config.ts';
+import { RULES_V6, RULES_V7 } from 'file:///C:/Code/SoloDeck/src/selvedge/config.ts';
+
+const CONFIGS = { v6: RULES_V6, v7: RULES_V7 } as const;
 import { applyMove, createGame, rackAfterHang, bestFill, openCommissions, moveSignature, type SelvedgeMove, type SelvedgeState, type HangMove } from 'file:///C:/Code/SoloDeck/src/selvedge/engine.ts';
 import { commissionProgress } from 'file:///C:/Code/SoloDeck/src/selvedge/bots.ts';
 import { createPlanner } from 'file:///C:/Code/SoloDeck/src/bots/planner.ts';
@@ -16,11 +18,13 @@ const rng = new Random(11);
 const games = readFileSync(process.argv[2], 'utf-8').split('# game').filter((t) => t.trim()).map((t) => {
   const lines = t.split('\n');
   const seed = Number(/seed=(\d+)/.exec(lines[0])![1]);
+  const config = CONFIGS[/rules=(\w+)/.exec(lines[0])![1] as keyof typeof CONFIGS];
   const moves = lines.filter((l) => l.startsWith('m ')).map((l) => {
     const p = l.trim().split(' ');
+    if (p[1] === 'a') return { move: { kind: 'setAside', clothId: Number(p[2]) } as SelvedgeMove, at: Number(p[3]) };
     return p[1] === 'i' ? { move: { kind: 'inspect' } as SelvedgeMove, at: Number(p[2]) } : { move: { kind: 'hang', clothId: Number(p[2]), cell: Number(p[3]) } as SelvedgeMove, at: Number(p[4]) };
   });
-  return { seed, moves };
+  return { seed, config, moves };
 });
 
 function fillNow(state: SelvedgeState, looks: ReturnType<typeof rackAfterHang>) {
@@ -34,7 +38,7 @@ function proxyValue(state: SelvedgeState, looks: ReturnType<typeof rackAfterHang
 const onlyGame = process.argv[4] ? Number(process.argv[4]) : null;
 games.forEach((game, gi) => {
   if (onlyGame !== null && gi !== onlyGame) return;
-  let state = createGame(game.seed, RULES_V6);
+  let state = createGame(game.seed, game.config);
   console.log(`\n=== game ${gi + 1} seed ${game.seed}`);
   if (gi === 0) console.log('book: ' + state.commissions.map((c) => `#${c.id} ${look(c)}`).join('  '));
   let prev = 0;
@@ -55,7 +59,8 @@ games.forEach((game, gi) => {
       const f = fillNow(state, after);
       const pr = proxyValue(state, after);
       desc = `${look(state.cloths[move.clothId])}#${String(move.clothId).padStart(2)}->${String(move.cell).padStart(2)} => ${look(after[move.cell]!)} fill ${f}/${Math.max(...fills)} proxy ${pr >= Math.max(...proxies) - 1e-9 ? 'BEST' : 'no  '}`;
-    } else desc = `INSPECT (fill now ${fillNow(state, state.rack.map((id) => (id === null ? null : state.cloths[id])))} )`.padEnd(52);
+    } else if (move.kind === 'setAside') desc = `SET ASIDE ${look(state.cloths[move.clothId])}#${move.clothId}`.padEnd(52);
+    else desc = `INSPECT (fill now ${fillNow(state, state.rack.map((id) => (id === null ? null : state.cloths[id])))} )`.padEnd(52);
     const hand = state.hand.map((id) => look(state.cloths[id])).join(' ');
     console.log(`s${state.season + 1} ${gap.toFixed(1).padStart(5)}s ${desc} | planner rank ${rank === -1 ? 'cut' : rank + 1}/${ranked.length} val ${pv.toFixed(2)} best ${best.value.toFixed(2)} ${moveSignature(state, best.move)} | hand ${hand}`);
     const before = state;

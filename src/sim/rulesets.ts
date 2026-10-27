@@ -1,7 +1,7 @@
 import type { GameAdapter } from '../bots/types.ts';
 import { RULESETS as MORDANT_RULESETS, type RulesConfig } from '../engine/config.ts';
 import { createGame as createMordantGame } from '../engine/game.ts';
-import { RULES_V6, V6_PROBES } from '../selvedge/config.ts';
+import { RULES_V6, RULES_V7, V6_PROBES } from '../selvedge/config.ts';
 import { createGame as createSelvedgeGame, type SelvedgeConfig } from '../selvedge/engine.ts';
 import { mordantAdapter } from './adapters/mordant.ts';
 import { selvedgeAdapter } from './adapters/selvedge.ts';
@@ -49,6 +49,7 @@ function selvedgeRuleset(config: SelvedgeConfig): SimRuleset {
 export const SIM_RULESETS: Record<string, SimRuleset> = {
   ...Object.fromEntries(Object.values(MORDANT_RULESETS).map((config) => [config.version, mordantRuleset(config)])),
   v6: selvedgeRuleset(RULES_V6),
+  v7: selvedgeRuleset(RULES_V7),
   ...Object.fromEntries(V6_PROBES.map((config) => [config.version, selvedgeRuleset(config)])),
 };
 
