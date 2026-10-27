@@ -1,0 +1,5 @@
+node_modules
+dist
+.sim-snapshots
+# Regenerable bulk output from npm run sim; the summary JSON and logs are kept.
+sims/*-planner-records.json
