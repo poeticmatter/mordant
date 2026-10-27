@@ -633,3 +633,164 @@ Two caveats:
 
 **Verdict: keep, and put it to the player.** No metric got worse beyond noise, diversity improved, and
 it's the playtester's own idea, so their reaction is the real test.
+
+### Playtest 3, game 1 — log reading (v7, seed 339185, final 6)
+The playtester's best score so far, on a new seed, in 9.7 minutes. Replayed with
+`scripts/analyze-selvedge-log.ts` (Planner budget 800).
+
+| Season | Fills | Moves | Notes |
+|---|---|---|---|
+| 1 | 2 | 12 hangs | 107 s on the first move (reading the board). |
+| 2 | 2 | 7 hangs, 5 set-asides | 88 s on the first hang, which the Planner ranks 37th of 39. |
+| 3 | 2 | 6 hangs | Every hang took 10–37 s; the slowest season. |
+
+Observations:
+- **Set-asides.** Five, all in season 2, and all of plain cloths (no stains yet). The playtester
+  only dropped cloths with no history, never one that carried stains. One took 52 s, the longest
+  pause after the season openers.
+- **The Planner disagrees on timing.** It never ranks a set-aside first. Its best moves at those
+  points were hangs.
+- **The ending.** The last hang of season 3 filled 2 where another peg would have filled 3, and the
+  Planner's value there was 6.9: a 7 was in reach. The inspection came 4 s later.
+- **Early inspection.** Season 2 ended by choice with three cloths still in hand.
+
+**Meta-feedback from the playtester**, kept as a standing rule (see memory): their answers are
+playtester feedback, not design direction; ask about feelings, since the bots can't; always close
+with an open request for anything else.
+
+**Unprompted remark:** it felt odd that orientation matters on a square cloth. This is a fiction
+mismatch: the cloth looks turnable but the rules say it isn't. It's an M14 (invisible rule) problem
+even though the rules page states it. Candidate for v8: a commission accepts a cloth in any turn
+(or turn and flip). That would make fills much easier, so it would need re-tuning; to be simmed.
+
+### Debrief 3 — answers
+1. **Compared with round 2:** less constrained, possibly because this book never needed one colour
+   badly. *Overwhelmed* by seeing everything in the deck. In season 3 the draw order didn't
+   matter: there was room to plan every cloth's position in advance, "and I don't want to do that".
+2. **Setting aside:** worried it would leave too few cloths. Decided to wing it rather than calculate.
+3. **Season 3:** the same overwhelm, for the same reason.
+4. **Anything else:**
+   - Once a player figures it out, will there be a reason to come back?
+   - The colour bleed doesn't feel right: real dyes would *mix*, not swap.
+   - They like the theme, but it isn't coming through enough.
+   - Orientation shouldn't matter on a square cloth.
+   - **Constraint breach:** "only a deck" meant *everything* in the deck. The pattern book sits
+     outside it, so v6/v7 break the brief. The deck should remember, visibly, and hold everything.
+   - "Already a pretty decent game."
+
+**Reading.**
+- *Full information is the problem, not a fix.* In round 2 the basket was hidden in practice and the
+  player read and adapted. In round 3 it was on the board, and late seasons became a solvable layout
+  puzzle (≈10 cloths left, 12 pegs). Solving it felt like homework. The fun is in reading what comes
+  and adapting, not in exhaustive planning. This is invisible to the bots, which love full information.
+- *Set-aside was a gamble, not a calculation.* That's fine; a gamble is a feeling. But it worked by
+  removing plain cloths, which is housekeeping.
+- *The theme fights the rules.* Swapping colours and fixed orientation both read as arbitrary
+  ("why?"), and every "why?" spends attention on rules instead of the cloth.
+- *The pattern book is outside the deck.* That's a hard constraint, so this is a redesign, not a tweak.
+
+### What changes (v8, "tagged cloths")
+1. **Each cloth carries its own order.** A tag on the cloth names the edges its customer wants:
+   "two orange edges", "one green and one purple". No pattern book; the deck is everything. A cloth
+   ships at inspection once its tag is met, and leaves the deck. Your orders are also your dyers, so
+   every success thins the dyes you have left.
+2. **Dyes mix.** Every edge starts as the cloth's own colour. Touching a cloth of another colour mixes
+   that colour into the facing edge, on both cloths: red beside blue gives two purple edges. A third
+   primary on the same edge makes it **brown**, and a cloth with a brown edge can never ship. Brown
+   entropy becomes the risk you manage, not a drift. Edges only gain colour, so a cloth's frame is its
+   whole history.
+3. **Turn the cloth.** You choose its orientation as you hang it. Tags don't care which side is which,
+   only how many edges of each colour.
+4. **Less on the board.** The basket goes back behind a clearly labelled button. The board shows the
+   rack and your hand; tags are on the cloths themselves.
+5. **Rack size gets tuned so room is scarce in every season,** so late seasons stay about adapting
+   to the draw.
+
+Kept: three seasons, hand of 3, early inspection, setting aside (if the sims don't say otherwise).
+
+### Iteration 8 — v8: tagged cloths, mixing dyes, turning (from debrief 3)
+New engine in `src/selvedge/tags/`. The v6/v7 engine stays for the sims and old logs. The shared rack
+geometry moved to `src/selvedge/grid.ts`.
+
+**Probe 1: what a tag asks for.** My first version asked for *at least* the listed mixed edges (other edges
+free). Far too easy on 4 × 3: Greedy shipped 14.4 of 18 and the Planner 18/18 in every game. Then I tried
+**exact tags**: the tag names all four edges, with the rest plain, so over-dyeing spoils the order. That made
+spatial placement bite in both directions: you need some neighbours and must avoid others. Greedy fell to 8.3
+and the Planner to 14.3. Exact tags are now the only rule.
+
+**Probe 2: the human-proxy.** With only "one hang ahead, avoid spoiling", the proxy was no better than
+Greedy (8.4 vs 8.3), which is the warning sign. Adding one obvious human rule, *inspect rather than make a
+hang that leaves fewer cloths ready*, lifted it to 11.0. Most of the skill is reachable by simple, sensible
+rules.
+
+**Probe 3: rack size and turning** (1,000 games for heuristics, 14–28 for the Planner):
+
+| Variant | Greedy | Proxy | Planner |
+|---|---|---|---|
+| 4 × 3, turning | 8.3 | 11.0 | 14.3 |
+| 4 × 3, no turning | 8.0 | 12.1 | 13.5 |
+| 3 × 3, turning | 7.3 | 11.5 | 13.7 |
+| 3 × 3, no turning | 7.0 | 11.1 | 13.5 |
+
+On 4 × 3, turning helped only the Planner and *hurt* the proxy, which is the warning case. On 3 × 3 it helps
+the proxy and barely changes the Planner. **3 × 3 with turning**: half the deck fits per season, so the draw
+matters every season. That answers "in season 3 you can fully plan everything".
+
+**Probe 4: does memory still matter?** The first full run (tags 1,2,2,2,3,3; target 14) is in
+`sims/v8-small-tags.log`. Gradient, density and wins all passed:
+- Greedy 7.2, proxy 11.4, Planner 13.7;
+- wins 0.1 % / 10 % / 58 %;
+- trivial turns 1 %;
+- Planner over proxy 1.5 SD, against 5.3 in v7.
+
+**But M6 failed: −0.18 SD.** Washing every edge between seasons didn't hurt the Planner. It shipped about
+5 cloths a season from 9 pegs, finishing most tags within a single season, so carried colour was only a
+liability. (M8 read 100 % "fresh" because it labels each winning game by its majority shipment type. In
+fact 24 % of shipments used carried colour, but none needed it.)
+
+Bigger tags make tags span seasons:
+
+| Tag sizes | Greedy (wash) | Proxy (wash) | Planner (wash) | Carried share (Planner) |
+|---|---|---|---|---|
+| 1,2,2,2,3,3 | 7.3 (8.3) | 11.5 (11.2) | 13.7 (13.7) | 24 % |
+| 2,2,3,3,3,4 | 6.3 (5.8) | 10.3 (8.5) | 12.6 (11.9) | 42 % |
+| 2,3,3,3,4,4 | 5.2 (4.1) | 9.1 (6.6) | — | 48 % (proxy 53 %) |
+
+**Chosen: 2,2,3,3,3,4.** Carry pays for every bot, the proxy most of all (+1.8 ships), so
+keeping track of what a cloth already has is a human skill, not just a Planner one.
+
+**Full run** (`sims/v8.log`; 2,000 games per heuristic, 60 Planner games, budget 400). Wins are at target
+13, recomputed from the records: the run itself used a target of 12, at which the proxy won 24 %. Too easy
+for a one-move player, so the target moved to 13.
+
+| Metric | Target | v7 | v8 |
+|---|---|---|---|
+| Random / Greedy / proxy / Planner (mean ships of 18) | — | — | 1.9 / 6.3 / 10.3 / 12.8 |
+| Planner wins | 55–80 % | 60 % | 65 % ✅ |
+| Planner ×4 | > Planner | 68 % | mean 13.75; headroom +0.73 SD ✅ |
+| Proxy over Greedy | > 0 | +0.74 SD | **+2.04 SD** ✅ |
+| Planner over proxy (wider is a warning) | — | 5.33 SD | **1.58 SD** ✅ |
+| M13 Greedy / proxy wins | ≤ 15 % | 0.1 % / 1.1 % | ≈0 % / ≈9 % ✅ |
+| M5 memory-blind drop | ≥ 0.5 SD | 2.76 | 2.94 ✅ |
+| M6 no-carry delta | ≥ 0.5 SD | 2.27 | 0.89 ✅ (small tags: −0.18 ❌) |
+| M7 random placement | ≥ 1 SD | 9.9 | 6.1 ✅ |
+| M4 trivial turns | ≤ 20 % | 6.6 % | 0.9 % ✅ |
+| M8 top label / entropy | ≤ 50 % / ≥ 0.6 | 63 % / 0.95 | 85 % fresh / 0.61 ⚠️ |
+| M9 tension AUC @50 / @75 | ≤ .80 / .92 | .52 / .59 | .75 / .67 ✅ |
+| M10 variety | high | — | 0.71 |
+| M11 decisions | 35–60 | 33.9 | 26.4 ⚠️ short |
+| M12 visible changes / move | 1–3 | 0.99 | 0.81 ⚠️ |
+
+**Reading.**
+- The strong-to-human gap fell from 5.3 SD to 1.6 SD, and simple human rules are worth 2 SD over Greedy:
+  the depth is now mostly within reach.
+- Memory matters both ways. Forgetting carried colour costs 2.9 SD (it's what spoils cloths). Carrying it
+  is worth +0.9 SD (it's what finishes big tags).
+- Two weaker spots:
+  - M8: most winning games are still mostly fresh shipments.
+  - M11: games are short, 26 decisions. Pacing in minutes is the thing to check with the player; their
+    v7 game took ~30 s per decision late on, which would make about 12 minutes.
+- What the bots can't tell: whether mixing *feels* like dye, whether exact four-edge tags are readable
+  at a glance, and whether turning is a pleasure or a chore.
+
+**Verdict: ship v8 to playtest round 4.**

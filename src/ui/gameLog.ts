@@ -1,7 +1,7 @@
-import type { SelvedgeMove } from '../selvedge/engine.ts';
+import type { TagsMove } from '../selvedge/tags/engine.ts';
 
 export interface LoggedMove {
-  move: SelvedgeMove;
+  move: TagsMove;
   /** Milliseconds since the game started. */
   atMs: number;
 }
@@ -11,7 +11,7 @@ export interface GameLog {
   seed: number;
   startedAt: string;
   moves: LoggedMove[];
-  /** Commissions filled, once the game is over. */
+  /** Cloths shipped, once the game is over. */
   finalScore: number | null;
   /** UI events (rules opened, menu opened, …) that help explain hesitation. */
   events: { kind: string; atMs: number }[];
@@ -25,7 +25,7 @@ export function elapsedMs(log: GameLog): number {
   return Date.now() - Date.parse(log.startedAt);
 }
 
-export function withMove(log: GameLog, move: SelvedgeMove): GameLog {
+export function withMove(log: GameLog, move: TagsMove): GameLog {
   return { ...log, moves: [...log.moves, { move, atMs: elapsedMs(log) }] };
 }
 
@@ -37,11 +37,11 @@ export function withFinalScore(log: GameLog, finalScore: number): GameLog {
   return { ...log, finalScore };
 }
 
-/** `h <cloth> <peg>` for a hang, `a <cloth>` for setting a cloth aside, `i` for calling the inspection early. */
-export function encodeMove(move: SelvedgeMove): string {
+/** `h <cloth> <peg> <quarter turns>` for a hang, `a <cloth>` for setting a cloth aside, `i` for calling the inspection early. */
+export function encodeMove(move: TagsMove): string {
   switch (move.kind) {
     case 'hang':
-      return `h ${move.clothId} ${move.cell}`;
+      return `h ${move.clothId} ${move.cell} ${move.turns}`;
     case 'setAside':
       return `a ${move.clothId}`;
     case 'inspect':
@@ -49,10 +49,10 @@ export function encodeMove(move: SelvedgeMove): string {
   }
 }
 
-export function decodeMove(text: string): SelvedgeMove {
-  const [kind, clothId, cell] = text.trim().split(' ');
+export function decodeMove(text: string): TagsMove {
+  const [kind, clothId, cell, turns] = text.trim().split(' ');
   if (kind === 'i') return { kind: 'inspect' };
-  if (kind === 'h') return { kind: 'hang', clothId: Number(clothId), cell: Number(cell) };
+  if (kind === 'h') return { kind: 'hang', clothId: Number(clothId), cell: Number(cell), turns: Number(turns) };
   if (kind === 'a') return { kind: 'setAside', clothId: Number(clothId) };
   throw new Error(`Unrecognised logged move "${text}"`);
 }
@@ -71,7 +71,7 @@ export function formatLogForExport(logs: readonly GameLog[]): string {
 }
 
 /** Moves from an exported log, for replaying a game exactly. */
-export function parseExportedMoves(text: string): SelvedgeMove[] {
+export function parseExportedMoves(text: string): TagsMove[] {
   return text
     .split('\n')
     .filter((line) => line.startsWith('m '))

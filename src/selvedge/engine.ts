@@ -1,13 +1,8 @@
 import { shuffle, nextRandom } from '../engine/rng.ts';
 import { DYES, type Dye } from '../engine/shades.ts';
+import { neighbourCell, OPPOSITE, SIDES } from './grid.ts';
 
-/** Sides in clockwise order; `OPPOSITE[side]` is the side that faces it. */
-export const TOP = 0;
-export const RIGHT = 1;
-export const BOTTOM = 2;
-export const LEFT = 3;
-export const SIDES = [TOP, RIGHT, BOTTOM, LEFT] as const;
-export const OPPOSITE = [BOTTOM, LEFT, TOP, RIGHT] as const;
+export { BOTTOM, LEFT, neighbourCell, OPPOSITE, RIGHT, SIDES, TOP } from './grid.ts';
 
 export interface SelvedgeConfig {
   version: string;
@@ -68,16 +63,6 @@ export interface SelvedgeState {
 }
 
 export class IllegalMoveError extends Error {}
-
-export function neighbourCell(cell: number, side: number, config: SelvedgeConfig): number | null {
-  const { rackWidth, rackHeight } = config;
-  const x = cell % rackWidth;
-  const y = Math.floor(cell / rackWidth);
-  if (side === TOP) return y > 0 ? cell - rackWidth : null;
-  if (side === RIGHT) return x < rackWidth - 1 ? cell + 1 : null;
-  if (side === BOTTOM) return y < rackHeight - 1 ? cell + rackWidth : null;
-  return x > 0 ? cell - 1 : null;
-}
 
 function drawCommissions(config: SelvedgeConfig, rngState: number): { commissions: Commission[]; rngState: number } {
   let state = rngState;

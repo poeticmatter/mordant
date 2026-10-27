@@ -1,16 +1,14 @@
-import type { Dye } from '../engine/shades.ts';
-import type { SelvedgeState } from '../selvedge/engine.ts';
+import type { ClothLook, TagsState } from '../selvedge/tags/engine.ts';
 import { ClothTile } from './ClothTile.tsx';
 
 export interface PegView {
   clothId: number;
-  body: Dye;
-  edges: readonly (Dye | null)[];
+  look: ClothLook;
   freshSides: readonly number[];
 }
 
 interface RackProps {
-  game: SelvedgeState;
+  game: TagsState;
   /** What each peg shows: the live rack, or the rack as a previewed hang would leave it. */
   pegs: readonly (PegView | null)[];
   previewCell: number | null;
@@ -19,16 +17,15 @@ interface RackProps {
   onTapPeg: (cell: number) => void;
 }
 
-/** The drying rack: a frame of pegs. Edges against the frame never get stained. */
+/** The drying rack: a frame of pegs. Edges against the frame keep their colour. */
 export function Rack({ game, pegs, previewCell, shippingCells, canHang, onTapPeg }: RackProps) {
   return (
     <section
       aria-label="Drying rack"
-      className="grid gap-1.5 rounded-md border-4 border-hemp/70 bg-slate-deep p-1.5"
+      className="grid items-start gap-1.5 rounded-md border-4 border-hemp/70 bg-slate-deep p-1.5"
       style={{ gridTemplateColumns: `repeat(${game.config.rackWidth}, minmax(0, 1fr))` }}
     >
       {pegs.map((peg, cell) => {
-        const isPreview = cell === previewCell;
         if (peg === null) {
           return (
             <button
@@ -41,9 +38,10 @@ export function Rack({ game, pegs, previewCell, shippingCells, canHang, onTapPeg
             />
           );
         }
+        const isPreview = cell === previewCell;
         return (
-          <div key={cell} className={isPreview ? 'rounded-[4px] outline-2 outline-offset-2 outline-chalk' : ''}>
-            <ClothTile body={peg.body} edges={peg.edges} freshSides={peg.freshSides} isGhost={isPreview} isShipping={shippingCells.has(cell)} />
+          <div key={cell} className={isPreview ? 'rounded-[4px] outline-2 outline-offset-2 outline-weld' : ''}>
+            <ClothTile look={peg.look} freshSides={peg.freshSides} isGhost={isPreview} isShipping={shippingCells.has(cell)} />
           </div>
         );
       })}

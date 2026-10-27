@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { RULES_V7 } from '../selvedge/config.ts';
-import { completedCount } from '../selvedge/engine.ts';
+import { RULES_V8 } from '../selvedge/tags/config.ts';
+import { shippedCount } from '../selvedge/tags/engine.ts';
 import { Board } from './Board.tsx';
 import { MenuSheet } from './MenuSheet.tsx';
 import { RulesPage } from './RulesPage.tsx';
@@ -10,7 +10,7 @@ import { useGameSession } from './useGameSession.ts';
 type View = 'game' | 'rules' | 'menu' | 'cloths';
 
 export function App() {
-  const session = useGameSession(RULES_V7);
+  const session = useGameSession(RULES_V8);
   const { game } = session;
   const [view, setView] = useState<View>(() => (session.currentLog.moves.length === 0 ? 'rules' : 'game'));
 
@@ -25,8 +25,8 @@ export function App() {
         <h1 className="text-2xl font-extrabold tracking-tight">Selvedge</h1>
         <p className="flex-1 text-chalk-soft">{game.isOver ? 'Finished' : `Season ${game.season + 1} of ${game.config.seasons}`}</p>
         <p className="text-right">
-          <span className="text-2xl font-extrabold">{completedCount(game)}</span>
-          <span className="text-chalk-soft"> / {game.commissions.length}</span>
+          <span className="text-2xl font-extrabold">{shippedCount(game)}</span>
+          <span className="text-chalk-soft"> of {game.config.shipTarget} shipped</span>
         </p>
         <button type="button" onClick={() => open('menu')} className="rounded-sm border border-slate-line px-3 py-2">
           Menu
@@ -44,6 +44,7 @@ export function App() {
           preview={session.preview}
           onSelectCloth={session.selectCloth}
           onTapPeg={session.tapPeg}
+          onTurn={session.turnPreview}
           onHang={session.hangPreview}
           onSetAside={session.setAsideSelected}
           onInspectNow={session.inspectNow}

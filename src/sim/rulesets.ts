@@ -3,8 +3,11 @@ import { RULESETS as MORDANT_RULESETS, type RulesConfig } from '../engine/config
 import { createGame as createMordantGame } from '../engine/game.ts';
 import { RULES_V6, RULES_V7, V6_PROBES } from '../selvedge/config.ts';
 import { createGame as createSelvedgeGame, type SelvedgeConfig } from '../selvedge/engine.ts';
+import { RULES_V8, V8_PROBES } from '../selvedge/tags/config.ts';
+import { createGame as createTagsGame, type TagsConfig } from '../selvedge/tags/engine.ts';
 import { mordantAdapter } from './adapters/mordant.ts';
 import { selvedgeAdapter } from './adapters/selvedge.ts';
+import { tagsAdapter } from './adapters/tags.ts';
 import { buildBot, type BotSpec } from './bots.ts';
 import { playGame, type CreateGame, type GameRecord } from './play.ts';
 
@@ -46,11 +49,19 @@ function selvedgeRuleset(config: SelvedgeConfig): SimRuleset {
   );
 }
 
+function tagsRuleset(config: TagsConfig): SimRuleset {
+  return simRuleset(config.version, tagsAdapter, (carriesMemory) => (seed) =>
+    createTagsGame(seed, { ...config, carriesMemoryBetweenSeasons: carriesMemory }),
+  );
+}
+
 export const SIM_RULESETS: Record<string, SimRuleset> = {
   ...Object.fromEntries(Object.values(MORDANT_RULESETS).map((config) => [config.version, mordantRuleset(config)])),
   v6: selvedgeRuleset(RULES_V6),
   v7: selvedgeRuleset(RULES_V7),
   ...Object.fromEntries(V6_PROBES.map((config) => [config.version, selvedgeRuleset(config)])),
+  v8: tagsRuleset(RULES_V8),
+  ...Object.fromEntries(V8_PROBES.map((config) => [config.version, tagsRuleset(config)])),
 };
 
 export function simRulesetFor(version: string): SimRuleset {

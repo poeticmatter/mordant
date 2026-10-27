@@ -10,10 +10,14 @@
   --color-hemp: #c8b08a;
   --color-cloth: #ece6d8;
 
-  /* The three dyes are the only saturated colours on screen: colour always means game state. */
+  /* Dyes and their mixes are the only saturated colours on screen: colour always means game state. */
   --color-madder: #b5392f;
   --color-weld: #e0b92e;
   --color-woad: #2f5aa6;
+  --color-orange: #dd7a22;
+  --color-green: #4f8a3c;
+  --color-purple: #74408c;
+  --color-brown: #6a4a33;
 
   --font-sans: 'Bricolage Grotesque', system-ui, sans-serif;
 }

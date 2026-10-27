@@ -1,18 +1,18 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { applyMove, completedCount, type HangMove, type SelvedgeConfig, type SelvedgeMove, type SelvedgeState } from '../selvedge/engine.ts';
+import { applyMove, shippedCount, type HangMove, type TagsConfig, type TagsMove, type TagsState } from '../selvedge/tags/engine.ts';
 import { startLog, withEvent, withFinalScore, withMove, type GameLog } from './gameLog.ts';
 import { inspectionAfter, randomSeed, replayGame, touchedBy, type InspectionReport } from './session.ts';
 import { loadLogs, saveLogs } from './storage.ts';
 
 interface SessionState {
   logs: GameLog[];
-  game: SelvedgeState;
-  /** Cloths stained by the last hang, so they can flash once. */
+  game: TagsState;
+  /** Cloths that took colour from the last hang, so they can flash once. */
   justTouched: number[];
   inspection: InspectionReport | null;
 }
 
-function resumeOrStart(config: SelvedgeConfig): SessionState {
+function resumeOrStart(config: TagsConfig): SessionState {
   const logs = loadLogs();
   const current = logs[logs.length - 1];
   if (current && current.finalScore === null && current.rules === config.version) {
@@ -26,7 +26,7 @@ function resumeOrStart(config: SelvedgeConfig): SessionState {
   return startFresh(config, logs, randomSeed());
 }
 
-function startFresh(config: SelvedgeConfig, logs: GameLog[], seed: number): SessionState {
+function startFresh(config: TagsConfig, logs: GameLog[], seed: number): SessionState {
   const keptLogs = logs.filter((log) => log.finalScore !== null || log.moves.length > 0);
   return { logs: [...keptLogs, startLog(config.version, seed)], game: replayGame(seed, [], config), justTouched: [], inspection: null };
 }
@@ -35,18 +35,19 @@ function replaceCurrentLog(logs: GameLog[], log: GameLog): GameLog[] {
   return [...logs.slice(0, -1), log];
 }
 
-export function useGameSession(config: SelvedgeConfig) {
+export function useGameSession(config: TagsConfig) {
   const [session, setSession] = useState<SessionState>(() => resumeOrStart(config));
   const [selectedClothId, setSelectedClothId] = useState<number | null>(null);
   const [previewCell, setPreviewCell] = useState<number | null>(null);
+  const [previewTurns, setPreviewTurns] = useState(0);
 
   useEffect(() => saveLogs(session.logs), [session.logs]);
 
-  const play = useCallback((move: SelvedgeMove) => {
+  const play = useCallback((move: TagsMove) => {
     setSession((previous) => {
       const next = applyMove(previous.game, move);
       let log = withMove(previous.logs[previous.logs.length - 1], move);
-      if (next.isOver) log = withFinalScore(log, completedCount(next));
+      if (next.isOver) log = withFinalScore(log, shippedCount(next));
       return {
         logs: replaceCurrentLog(previous.logs, log),
         game: next,
@@ -56,6 +57,7 @@ export function useGameSession(config: SelvedgeConfig) {
     });
     setSelectedClothId(null);
     setPreviewCell(null);
+    setPreviewTurns(0);
   }, []);
 
   const recordEvent = useCallback((kind: string) => {
@@ -68,6 +70,7 @@ export function useGameSession(config: SelvedgeConfig) {
   const selectCloth = useCallback((clothId: number) => {
     setSelectedClothId((current) => (current === clothId ? null : clothId));
     setPreviewCell(null);
+    setPreviewTurns(0);
   }, []);
 
   /**
@@ -83,8 +86,8 @@ export function useGameSession(config: SelvedgeConfig) {
   );
 
   const preview = useMemo<HangMove | null>(
-    () => (selectedClothId !== null && previewCell !== null ? { kind: 'hang', clothId: selectedClothId, cell: previewCell } : null),
-    [previewCell, selectedClothId],
+    () => (selectedClothId !== null && previewCell !== null ? { kind: 'hang', clothId: selectedClothId, cell: previewCell, turns: previewTurns } : null),
+    [previewCell, previewTurns, selectedClothId],
   );
 
   return {
@@ -98,6 +101,7 @@ export function useGameSession(config: SelvedgeConfig) {
     selectCloth,
     tapPeg,
     hangPreview: () => preview && play(preview),
+    turnPreview: () => setPreviewTurns((turns) => (turns + 1) % 4),
     setAsideSelected: () => selectedClothId !== null && play({ kind: 'setAside', clothId: selectedClothId }),
     inspectNow: () => play({ kind: 'inspect' }),
     dismissInspection: () => setSession((previous) => ({ ...previous, inspection: null, justTouched: [] })),
@@ -105,6 +109,7 @@ export function useGameSession(config: SelvedgeConfig) {
       setSession((previous) => startFresh(config, previous.logs, seed));
       setSelectedClothId(null);
       setPreviewCell(null);
+      setPreviewTurns(0);
     },
     recordEvent,
   };

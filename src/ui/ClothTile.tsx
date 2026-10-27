@@ -1,59 +1,81 @@
 import type { CSSProperties } from 'react';
 import type { Dye } from '../engine/shades.ts';
+import { metTagEntries, type ClothLook, type Mix } from '../selvedge/tags/engine.ts';
 
-const DYE_COLOURS = ['var(--color-madder)', 'var(--color-weld)', 'var(--color-woad)'];
-export const DYE_NAMES = ['Red', 'Yellow', 'Blue'];
+/** Indexed by mix bit set: 1 red, 2 yellow, 3 orange, 4 blue, 5 purple, 6 green, 7 brown. */
+const MIX_COLOURS = [
+  '',
+  'var(--color-madder)',
+  'var(--color-weld)',
+  'var(--color-orange)',
+  'var(--color-woad)',
+  'var(--color-purple)',
+  'var(--color-green)',
+  'var(--color-brown)',
+];
+const MIX_NAMES = ['', 'Red', 'Yellow', 'Orange', 'Blue', 'Purple', 'Green', 'Brown'];
+const DYE_NAMES = ['Red', 'Yellow', 'Blue'];
 const DYE_LETTERS = ['R', 'Y', 'B'];
 const DYE_INK = ['text-cloth', 'text-slate-deep', 'text-cloth'];
-const SIDE_NAMES = ['Top', 'Right', 'Bottom', 'Left'] as const;
-const CLEAN_EDGE = 'var(--color-cloth)';
+const SIDE_NAMES = ['top', 'right', 'bottom', 'left'] as const;
 
 export function dyeName(dye: Dye): string {
   return DYE_NAMES[dye];
 }
 
+export function mixName(mix: Mix): string {
+  return MIX_NAMES[mix];
+}
+
+function mixColour(mix: Mix): string {
+  return MIX_COLOURS[mix];
+}
+
+export function describeTag(look: ClothLook): string {
+  return look.tag.map((mix) => mixName(mix).toLowerCase()).join(', ');
+}
+
 interface ClothTileProps {
-  body: Dye;
-  edges: readonly (Dye | null)[];
-  /** Sides that were just stained (or would be, in a preview); they flash once. */
+  look: ClothLook;
+  /** Sides that just took colour (or would, in a preview); they flash once. */
   freshSides?: readonly number[];
   isGhost?: boolean;
   isShipping?: boolean;
-  /** Frame thickness as a share of the tile, so the same drawing works at any size. */
   size?: 'large' | 'small';
 }
 
 /**
- * A cloth drawn like a picture frame: the centre is its own colour, each side of
- * the frame is the stain on that edge (unbleached when clean).
+ * A cloth drawn like a picture frame: the centre is its own colour, each side of the frame is
+ * the colour that edge has become. Its tag (what the customer wants) sits underneath.
  */
-export function ClothTile({ body, edges, freshSides = [], isGhost = false, isShipping = false, size = 'large' }: ClothTileProps) {
+export function ClothTile({ look, freshSides = [], isGhost = false, isShipping = false, size = 'large' }: ClothTileProps) {
   const frame = size === 'large' ? 'clamp(7px, 2.6vw, 12px)' : '5px';
   const style: CSSProperties = {
     borderWidth: frame,
     borderStyle: 'solid',
-    borderColor: edges.map((edge) => (edge === null ? CLEAN_EDGE : DYE_COLOURS[edge])).join(' '),
-    backgroundColor: DYE_COLOURS[body],
+    borderColor: look.edges.map(mixColour).join(' '),
+    backgroundColor: mixColour(1 << look.body),
   };
-  const description = `${dyeName(body)} cloth; ${edges
-    .map((edge, side) => `${SIDE_NAMES[side].toLowerCase()} ${edge === null ? 'clean' : dyeName(edge).toLowerCase()}`)
-    .join(', ')}`;
+  const description = `${dyeName(look.body)} cloth; edges ${look.edges
+    .map((mix, side) => `${SIDE_NAMES[side]} ${mixName(mix).toLowerCase()}`)
+    .join(', ')}; wants ${describeTag(look)}`;
   return (
-    <div
-      role="img"
-      aria-label={description}
-      style={style}
-      className={`relative flex aspect-square w-full items-center justify-center rounded-[3px] ${isGhost ? 'opacity-70' : ''} ${isShipping ? 'outline-3 outline-offset-2 outline-weld' : ''}`}
-    >
-      <span className={`font-extrabold ${DYE_INK[body]} ${size === 'large' ? 'text-lg' : 'text-xs'}`}>{DYE_LETTERS[body]}</span>
-      {freshSides.map((side) => (
-        <span key={side} aria-hidden className={`stripe-fresh pointer-events-none absolute rounded-full bg-chalk ${FRESH_SIDE_MARK[side]}`} />
-      ))}
+    <div role="img" aria-label={description} className={`flex flex-col gap-1 ${isGhost ? 'opacity-70' : ''}`}>
+      <div
+        style={style}
+        className={`relative flex aspect-square w-full items-center justify-center rounded-[3px] ${isShipping ? 'outline-3 outline-offset-2 outline-chalk' : ''}`}
+      >
+        <span className={`font-extrabold ${DYE_INK[look.body]} ${size === 'large' ? 'text-lg' : 'text-xs'}`}>{DYE_LETTERS[look.body]}</span>
+        {freshSides.map((side) => (
+          <span key={side} aria-hidden className={`stripe-fresh pointer-events-none absolute rounded-full bg-chalk ${FRESH_SIDE_MARK[side]}`} />
+        ))}
+      </div>
+      <TagStrip look={look} size={size} />
     </div>
   );
 }
 
-/** A short tick just inside the side that took (or would take) a stain. */
+/** A short tick just inside the side that took (or would take) colour. */
 const FRESH_SIDE_MARK = [
   'top-0.5 left-1/4 right-1/4 h-[3px]',
   'right-0.5 top-1/4 bottom-1/4 w-[3px]',
@@ -61,27 +83,22 @@ const FRESH_SIDE_MARK = [
   'left-0.5 top-1/4 bottom-1/4 w-[3px]',
 ];
 
-interface CommissionTileProps {
-  body: Dye;
-  /** Required stain per side; null means any. */
-  edges: readonly (Dye | null)[];
-}
-
-/** A commission: the cloth colour wanted, and the stains wanted on some sides. Dashed sides take anything. */
-export function CommissionTile({ body, edges }: CommissionTileProps) {
-  const style: CSSProperties = {
-    borderWidth: '6px',
-    borderStyle: edges.map((edge) => (edge === null ? 'dashed' : 'solid')).join(' '),
-    borderColor: edges.map((edge) => (edge === null ? 'var(--color-slate-line)' : DYE_COLOURS[edge])).join(' '),
-    backgroundColor: DYE_COLOURS[body],
-  };
-  const description = `${dyeName(body)} cloth with ${edges
-    .map((edge, side) => (edge === null ? null : `${dyeName(edge).toLowerCase()} ${SIDE_NAMES[side].toLowerCase()}`))
-    .filter(Boolean)
-    .join(', ')}`;
+/**
+ * The tag: one chip per edge the customer wants, in any order. A filled chip is an edge the
+ * cloth already has; a hollow one is still missing.
+ */
+export function TagStrip({ look, size = 'large' }: { look: ClothLook; size?: 'large' | 'small' }) {
+  const met = metTagEntries(look);
+  const chip = size === 'large' ? 'h-2.5' : 'h-1.5';
   return (
-    <div role="img" aria-label={description} style={style} className="flex aspect-square w-full items-center justify-center rounded-[3px]">
-      <span className={`text-xs font-extrabold ${DYE_INK[body]}`}>{DYE_LETTERS[body]}</span>
+    <div aria-hidden className="flex gap-0.5">
+      {look.tag.map((mix, index) => (
+        <span
+          key={index}
+          className={`${chip} flex-1 rounded-[2px] border-2`}
+          style={{ borderColor: mixColour(mix), backgroundColor: met[index] ? mixColour(mix) : 'transparent' }}
+        />
+      ))}
     </div>
   );
 }

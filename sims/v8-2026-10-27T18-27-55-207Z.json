@@ -1,0 +1,96 @@
+{
+  "rules": "v8",
+  "budget": 400,
+  "scores": {
+    "random": {
+      "games": 2000,
+      "mean": 1.9015,
+      "sd": 1.33596322928439,
+      "winRate": 0
+    },
+    "greedy": {
+      "games": 2000,
+      "mean": 6.2875,
+      "sd": 1.9763207609090232,
+      "winRate": 0.007
+    },
+    "humanProxy": {
+      "games": 2000,
+      "mean": 10.3275,
+      "sd": 1.6598926923147763,
+      "winRate": 0.243
+    },
+    "planner": {
+      "games": 60,
+      "mean": 12.833333333333334,
+      "sd": 1.3682917167849196,
+      "winRate": 0.7833333333333333
+    },
+    "plannerX4": {
+      "games": 20,
+      "mean": 13.75,
+      "sd": 1.2599603168354152,
+      "winRate": 0.9
+    }
+  },
+  "gradient": {
+    "greedyOverRandomSd": 2.2192753761199304,
+    "humanProxyOverGreedySd": 2.0442025808309445,
+    "plannerOverGreedySd": 4.811352179199197,
+    "plannerOverHumanProxySd": 1.5834829956858125,
+    "headroomSd": 0.7308383057011438
+  },
+  "greedyCeiling": {
+    "greedyWinRate": 0.007,
+    "humanProxyWinRate": 0.243
+  },
+  "density": {
+    "closeShare": 0.8441640378548896,
+    "trivialShare": 0.00946372239747634,
+    "delta": 0.3420729291962299
+  },
+  "ablations": {
+    "memoryBlindDropSd": 2.9355338612329285,
+    "randomPlacementDropSd": 6.053777298891143,
+    "noCarryRulesDeltaSd": 0.8891866052697251,
+    "memoryBlind": {
+      "games": 60,
+      "mean": 8.816666666666666,
+      "sd": 1.51097834384069,
+      "winRate": 0.05
+    },
+    "randomPlacement": {
+      "games": 60,
+      "mean": 4.55,
+      "sd": 1.3714347718113806,
+      "winRate": 0
+    },
+    "noCarryRules": {
+      "games": 60,
+      "mean": 11.616666666666667,
+      "sd": 1.1845064607487605,
+      "winRate": 0.6
+    }
+  },
+  "diversity": {
+    "labelShares": {
+      "fresh": 0.851063829787234,
+      "carried": 0.14893617021276595
+    },
+    "topShare": 0.851063829787234,
+    "normalizedEntropy": 0.6071716548713029
+  },
+  "tension": {
+    "calibratedTarget": 13,
+    "aucAtHalf": 0.7472527472527473,
+    "aucAtThreeQuarters": 0.6684981684981685
+  },
+  "variety": 0.7060920224749888,
+  "pacing": {
+    "meanDecisions": 26.416666666666668,
+    "coefficientOfVariation": 0.04802832641809023,
+    "meanDistinctChoices": 31.793690851735015,
+    "meanLookChanges": 0.8126182965299684,
+    "meanMemoryChanges": 0.8126182965299684
+  }
+}

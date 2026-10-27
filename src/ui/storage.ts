@@ -1,7 +1,7 @@
 import type { GameLog } from './gameLog.ts';
 
-// v6 moves are logged in a different shape from v1–v5, so they get their own key.
-const LOGS_KEY = 'selvedge.logs.v6';
+// Each move shape gets its own key: v1–v5, v6–v7 (pattern book), v8+ (tagged cloths, hangs with turns).
+const LOGS_KEY = 'selvedge.logs.v8';
 
 /**
  * Logs live in this browser only. Storage can be unavailable (private mode,

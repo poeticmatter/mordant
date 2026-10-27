@@ -1,67 +1,84 @@
 import { BLUE, RED, YELLOW } from '../engine/shades.ts';
-import type { SelvedgeConfig } from '../selvedge/engine.ts';
-import { ClothTile, CommissionTile } from './ClothTile.tsx';
+import { BROWN, mixOf, type ClothLook, type TagsConfig } from '../selvedge/tags/engine.ts';
+import { ClothTile } from './ClothTile.tsx';
 
-function Pair({ caption, children }: { caption: string; children: React.ReactNode }) {
+const PLAIN_RED = mixOf(RED);
+const PLAIN_BLUE = mixOf(BLUE);
+const PURPLE = mixOf(RED) | mixOf(BLUE);
+const ORANGE = mixOf(RED) | mixOf(YELLOW);
+
+const RED_BESIDE_BLUE: ClothLook = { body: RED, tag: [PLAIN_RED, PLAIN_RED, ORANGE, PURPLE], edges: [PLAIN_RED, PURPLE, PLAIN_RED, PLAIN_RED] };
+const BLUE_BESIDE_RED: ClothLook = { body: BLUE, tag: [PLAIN_BLUE, PLAIN_BLUE, PLAIN_BLUE, PURPLE], edges: [PLAIN_BLUE, PLAIN_BLUE, PLAIN_BLUE, PURPLE] };
+const SPOILED_RED: ClothLook = { body: RED, tag: [PLAIN_RED, PLAIN_RED, ORANGE, PURPLE], edges: [PLAIN_RED, BROWN, PLAIN_RED, ORANGE] };
+
+function Example({ caption, looks }: { caption: string; looks: readonly ClothLook[] }) {
   return (
     <figure className="mt-3 flex items-center gap-4">
-      <div className="flex w-36 shrink-0 gap-1">{children}</div>
+      <div className="flex w-36 shrink-0 gap-1">
+        {looks.map((look, index) => (
+          <div key={index} className="w-16">
+            <ClothTile look={look} size="small" />
+          </div>
+        ))}
+      </div>
       <figcaption className="text-base text-chalk-soft">{caption}</figcaption>
     </figure>
   );
 }
 
 /** Rules as a normal page (not an overlay), so it reflows and zooms like any web page on a phone. */
-export function RulesPage({ config, onClose }: { config: SelvedgeConfig; onClose: () => void }) {
-  const commissionCount = config.fixedEdgesPerCommission.length;
+export function RulesPage({ config, onClose }: { config: TagsConfig; onClose: () => void }) {
+  const clothCount = config.clothsPerDye * 3;
   return (
     <article className="text-[17px] leading-relaxed">
       <h2 className="text-3xl font-extrabold">How it works</h2>
       <p className="mt-3">
-        Fill all {commissionCount} commissions in the pattern book within {config.seasons} seasons. Each wants a cloth of
-        one colour with particular stains on particular edges.
+        Your deck is {clothCount} cloths. Each carries a tag: the colours its customer wants on its four edges. Ship{' '}
+        {config.shipTarget} of them within {config.seasons} seasons.
       </p>
 
-      <h3 className="mt-6 text-xl font-semibold">Cloths that touch stain each other</h3>
+      <h3 className="mt-6 text-xl font-semibold">Touching cloths mix their dyes</h3>
       <p className="mt-1">
-        Each cloth has its own colour (the centre) and four edges (the frame). Hang a cloth on an empty peg: wherever it
-        touches another cloth, both touching edges take the other cloth's colour.
+        A cloth's centre is its own colour; its frame shows what each edge has become. Every edge starts plain, in the
+        cloth's own colour. Hang a cloth on an empty peg: wherever it touches another cloth, both touching edges mix the
+        two colours.
       </p>
-      <Pair caption="A red cloth hung beside a blue one: the red gets a blue edge, the blue gets a red edge.">
-        <div className="w-16">
-          <ClothTile body={RED} edges={[null, BLUE, null, null]} size="small" />
-        </div>
-        <div className="w-16">
-          <ClothTile body={BLUE} edges={[null, null, null, RED]} size="small" />
-        </div>
-      </Pair>
+      <Example caption="Red hung beside blue: the edges they share both turn purple." looks={[RED_BESIDE_BLUE, BLUE_BESIDE_RED]} />
       <p className="mt-3">
-        A new stain covers the old one. Edges against the rack's frame, or next to an empty peg, aren't touched.
+        Red and yellow make orange, yellow and blue make green. Edges against the rack's frame, beside an empty peg or
+        beside a cloth of the same colour stay as they are.
       </p>
+
+      <h3 className="mt-6 text-xl font-semibold">Tags</h3>
+      <p className="mt-1">
+        The chips under a cloth are its tag: one per edge, on any sides. A filled chip is an edge the cloth already has.
+        Plain chips mean edges the customer wants left plain. The blue cloth above is ready: one purple edge, three plain.
+      </p>
+
+      <h3 className="mt-6 text-xl font-semibold">Dye only builds up</h3>
+      <p className="mt-1">
+        Edges never lose colour. A third dye on a mixed edge turns it brown, and nobody wants brown. A cloth with more
+        edges of a colour than its tag asks for, or any brown edge, is spoiled for good. It can still dye others.
+      </p>
+      <Example caption="Spoiled: a brown edge. It wanted one purple and one orange." looks={[SPOILED_RED]} />
+      {config.allowsTurning && (
+        <p className="mt-3">
+          Cloths are square: after picking a peg, press <strong>Turn it</strong> to choose which edge faces which way.
+        </p>
+      )}
 
       <h3 className="mt-6 text-xl font-semibold">Inspection</h3>
       <p className="mt-1">
         The season ends when the rack is full, when your hand runs out, or when you press <strong>Inspect now</strong>.
-        Every cloth that matches an open commission fills it and leaves. Dashed sides of a commission take anything.
-      </p>
-      <Pair caption="This commission wants a yellow cloth with a red top edge. The other sides don't matter.">
-        <div className="w-16">
-          <CommissionTile body={YELLOW} edges={[RED, null, null, null]} />
-        </div>
-      </Pair>
-
-      <h3 className="mt-6 text-xl font-semibold">Stains last</h3>
-      <p className="mt-1">
-        Cloths that don't leave go back in the basket with their stains, and you draw them again next season. A cloth
-        hung in a corner keeps the two edges facing the frame exactly as they are.
+        Every cloth whose four edges match its tag ships and leaves the deck. The rest go back in the basket with their
+        colours, and you draw them again next season.
       </p>
 
       {config.allowsSettingAside && (
         <>
           <h3 className="mt-6 text-xl font-semibold">Setting a cloth aside</h3>
           <p className="mt-1">
-            Instead of hanging the cloth you picked, you can set it aside for good and draw another. It never comes back,
-            so it can't stain anything again, either.
+            Instead of hanging the cloth you picked, you can set it aside for good and draw another. It never comes back.
           </p>
         </>
       )}
