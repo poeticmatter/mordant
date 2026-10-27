@@ -505,3 +505,30 @@ and four rules, each with a visible effect; preview ticks show exactly which edg
 "Inspect now" in place of the cramped end-of-season; the end screen lists the unfilled commissions. Names,
 kin and order withdrawal are gone. Logs use a new storage key (`selvedge.logs.v6`) and record early inspections.
 **Stopped here for the human playtester.**
+
+## Playtest 2 — log reading before the debrief (v6, seed 219766 ×3, thinking times accurate)
+Logs: `playtests/round2-v6-seed219766.log`. Replayed with `scripts/analyze-v6-log.ts` (Planner budget 800
+per move) and bots on the same seed with varied bot randomness.
+
+| | Game 1 | Game 2 (replay) | Game 3 (replay) |
+|---|---|---|---|
+| Filled per season | 2 / 1 / 2 = **5** | 2 / 0 / 1 = **3** | 1 / 1 / 1 = **3** |
+| Play time (first hang → end) | 6 min | 4 min | 7 min |
+| Planner continuing from their season-2 start | 4/4 wins | 4/4 wins | 4/4 wins |
+| Planner continuing from their season-3 start | 0/4, mean 7 | 0/4, mean 6.5 | 0/4, mean 6 |
+
+The seed is typical: Planner from scratch 14/24 wins (mean 7.6), Greedy mean 3.8, proxy mean 4.4, neither
+ever wins. Five of the eight commissions want a red cloth (six reds in the deck).
+
+What the logs say before I ask anything:
+- **Season 1 was never the problem.** From every one of their season-2 positions the Planner still wins every
+  time. The games were lost in season 2, when cloths arrive already stained: 1, 0 and 1 commissions filled.
+- **Replays got worse, not better** (5 → 3 → 3), even though game 3 had the most thinking (pauses of
+  28–68 s in seasons 2–3). Playing the same seed again didn't teach them what went wrong.
+- **Long pauses sit at season starts** (36–43 s before the first hang of season 2, every game): reading a
+  hand of pre-stained cloths. That's the memory being read, and it's slow.
+- **Game 2, season 2: "inspect now" with nothing that would fill.** Then season 3 ended after 5 hangs with
+  cloths still in hand. Looks like giving up, or a misunderstanding of what inspection does. Ask.
+- **Game 3, season 3: inspect 0.8 s after the last hang**, one peg empty. Possibly a mis-tap. Ask.
+- Several hangs passed up an immediate second fill ("fill 1 of a possible 2"), mostly in game 3.
+- Game length 4–7 min is below the 10–20 min target, but two of the games were effectively abandoned.
