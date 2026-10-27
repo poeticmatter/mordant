@@ -2,7 +2,6 @@ import { emptyCells, rackView, rackViewAfterHang, type GameState, type Move } fr
 import { orderAccepts, type Order } from '../engine/orders.ts';
 import type { Random } from '../engine/rng.ts';
 import type { Dye } from '../engine/shades.ts';
-import type { Bot } from './types.ts';
 
 /**
  * A stand-in for a thoughtful but unaided human:
@@ -83,17 +82,11 @@ function bestMoveByValue(state: GameState, rng: Random, progressOf: ProgressFn):
 }
 
 /** The proxy the playtest gate is judged by: sees colour, not stripe order. */
-export const humanProxyBot: Bot = {
-  name: 'Human-proxy',
-  decide(state, rng) {
-    return { move: bestMoveByValue(state, rng, colourProgress) };
-  },
-};
+export function humanProxyMove(state: GameState, rng: Random): Move {
+  return bestMoveByValue(state, rng, colourProgress);
+}
 
 /** Diagnostic sibling: identical, except it reads stripe order exactly. */
-export const orderReadingProxyBot: Bot = {
-  name: 'Human-proxy (reads order)',
-  decide(state, rng) {
-    return { move: bestMoveByValue(state, rng, positionalProgress) };
-  },
-};
+export function orderReadingProxyMove(state: GameState, rng: Random): Move {
+  return bestMoveByValue(state, rng, positionalProgress);
+}

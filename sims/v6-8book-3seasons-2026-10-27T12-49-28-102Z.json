@@ -1,0 +1,69 @@
+{
+  "rules": "v6-8book-3seasons",
+  "budget": 400,
+  "scores": {
+    "random": {
+      "games": 1000,
+      "mean": 1.222,
+      "sd": 1.0191741754969994,
+      "winRate": 0
+    },
+    "greedy": {
+      "games": 1000,
+      "mean": 4.153,
+      "sd": 1.0842467431355285,
+      "winRate": 0
+    },
+    "humanProxy": {
+      "games": 1000,
+      "mean": 4.898,
+      "sd": 1.1294228614650945,
+      "winRate": 0.005
+    },
+    "planner": {
+      "games": 21,
+      "mean": 7.714285714285714,
+      "sd": 0.4517539514526257,
+      "winRate": 0.7142857142857143
+    },
+    "plannerX4": null
+  },
+  "gradient": {
+    "greedyOverRandomSd": 2.7032592152629884,
+    "humanProxyOverGreedySd": 0.6871129701026704,
+    "plannerOverGreedySd": 8.221921916437784,
+    "plannerOverHumanProxySd": 6.113736809658866,
+    "headroomSd": null
+  },
+  "greedyCeiling": {
+    "greedyWinRate": 0,
+    "humanProxyWinRate": 0.005
+  },
+  "density": {
+    "closeShare": 0.7618403247631935,
+    "trivialShare": 0.10825439783491204,
+    "delta": 0.11293848786315643
+  },
+  "ablations": null,
+  "diversity": {
+    "labelShares": {
+      "carried": 0.4666666666666667,
+      "fresh": 0.5333333333333333
+    },
+    "topShare": 0.5333333333333333,
+    "normalizedEntropy": 0.9967916319816367
+  },
+  "tension": {
+    "calibratedTarget": 8,
+    "aucAtHalf": 0.46111111111111114,
+    "aucAtThreeQuarters": 0.7277777777777777
+  },
+  "variety": 0.9946642246642244,
+  "pacing": {
+    "meanDecisions": 35.19047619047619,
+    "coefficientOfVariation": 0.07211319401609866,
+    "meanDistinctChoices": 18.174560216508794,
+    "meanLookChanges": 1.2300405953991882,
+    "meanMemoryChanges": 1.2300405953991882
+  }
+}

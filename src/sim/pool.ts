@@ -1,6 +1,5 @@
 import { availableParallelism } from 'node:os';
 import { Worker } from 'node:worker_threads';
-import type { RulesConfig } from '../engine/config.ts';
 import type { BotSpec } from './bots.ts';
 import type { GameRecord } from './play.ts';
 import type { WorkerJob } from './worker.ts';
@@ -17,7 +16,7 @@ function runJob(job: WorkerJob): Promise<GameRecord[]> {
 }
 
 /** Plays every seed with the bot, spread across all CPU cores. Results keep seed order. */
-export async function playSeeds(config: RulesConfig, botSpec: BotSpec, seeds: number[]): Promise<GameRecord[]> {
+export async function playSeeds(version: string, botSpec: BotSpec, seeds: number[], carriesMemory = true): Promise<GameRecord[]> {
   const workerCount = Math.max(1, availableParallelism() - 1);
   const chunkSize = Math.max(1, Math.ceil(seeds.length / (workerCount * CHUNKS_PER_WORKER)));
   const chunks: number[][] = [];
@@ -28,7 +27,7 @@ export async function playSeeds(config: RulesConfig, botSpec: BotSpec, seeds: nu
   async function drainQueue(): Promise<void> {
     while (nextChunk < chunks.length) {
       const index = nextChunk++;
-      results[index] = await runJob({ config, botSpec, seeds: chunks[index] });
+      results[index] = await runJob({ version, carriesMemory, botSpec, seeds: chunks[index] });
     }
   }
   await Promise.all(Array.from({ length: workerCount }, drainQueue));

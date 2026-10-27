@@ -1,15 +1,13 @@
 import { parentPort, workerData } from 'node:worker_threads';
-import type { RulesConfig } from '../engine/config.ts';
-import { buildBot, type BotSpec } from './bots.ts';
-import { playGame } from './play.ts';
+import type { BotSpec } from './bots.ts';
+import { simRulesetFor } from './rulesets.ts';
 
 export interface WorkerJob {
-  config: RulesConfig;
+  version: string;
+  carriesMemory: boolean;
   botSpec: BotSpec;
   seeds: number[];
 }
 
-const job = workerData as WorkerJob; // workerData is untyped; run.ts is its only producer.
-const bot = buildBot(job.botSpec);
-const records = job.seeds.map((seed) => playGame(seed, job.config, bot));
-parentPort?.postMessage(records);
+const job = workerData as WorkerJob; // workerData is untyped; pool.ts is its only producer.
+parentPort?.postMessage(simRulesetFor(job.version).play(job.botSpec, job.seeds, job.carriesMemory));

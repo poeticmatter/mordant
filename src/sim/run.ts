@@ -1,8 +1,5 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { parseArgs } from 'node:util';
-import { RULESETS } from '../engine/config.ts';
-import { buildOrderDeck } from '../engine/orders.ts';
-import { categoryCount } from './orderLabels.ts';
 import type { BotSpec } from './bots.ts';
 import {
   calibratedTarget,
@@ -16,20 +13,21 @@ import {
 } from './metrics.ts';
 import type { GameRecord } from './play.ts';
 import { playSeeds } from './pool.ts';
+import { simRulesetFor } from './rulesets.ts';
 
 const { values: args } = parseArgs({
   options: {
-    rules: { type: 'string', default: 'v1' },
+    rules: { type: 'string', default: 'v6' },
     games: { type: 'string', default: '2000' },
-    'planner-games': { type: 'string', default: '300' },
+    'planner-games': { type: 'string', default: '100' },
     budget: { type: 'string', default: '400' },
     'skip-ablations': { type: 'boolean', default: false },
     'skip-headroom': { type: 'boolean', default: false },
   },
 });
 
-const config = RULESETS[args.rules as string];
-if (!config) throw new Error(`Unknown ruleset "${args.rules}". Known: ${Object.keys(RULESETS).join(', ')}`);
+const ruleset = simRulesetFor(args.rules as string);
+const version = ruleset.version;
 const gameCount = Number(args.games);
 const plannerGameCount = Number(args['planner-games']);
 const budget = Number(args.budget);
@@ -45,52 +43,54 @@ async function timed(label: string, run: () => Promise<GameRecord[]>): Promise<G
 
 const planner = (options: object): BotSpec => ({ kind: 'planner', options: { rolloutBudget: budget, ...options } });
 
-console.log(`Ruleset ${config.version} (target ${config.targetScore})`);
-const random = await timed('Random', () => playSeeds(config, { kind: 'random' }, seeds));
-const greedy = await timed('Greedy', () => playSeeds(config, { kind: 'greedy' }, seeds));
-const humanProxy = await timed('Human-proxy', () => playSeeds(config, { kind: 'humanProxy' }, seeds));
-const orderReadingProxy = await timed('Human-proxy reads order', () => playSeeds(config, { kind: 'orderReadingProxy' }, seeds));
-const plannerRecords = await timed('Planner', () => playSeeds(config, planner({}), plannerSeeds));
+console.log(`Ruleset ${version}`);
+const random = await timed('Random', () => playSeeds(version, { kind: 'random' }, seeds));
+const heuristicRecords: Record<string, GameRecord[]> = {};
+for (const heuristic of ruleset.heuristicNames) {
+  heuristicRecords[heuristic] = await timed(heuristic, () => playSeeds(version, { kind: 'heuristic', heuristic }, seeds));
+}
+const greedy = heuristicRecords.greedy;
+const humanProxy = heuristicRecords.humanProxy;
+const plannerRecords = await timed('Planner', () => playSeeds(version, planner({}), plannerSeeds));
 const headroomSeeds = plannerSeeds.slice(0, Math.ceil(plannerGameCount / 3));
 const strongPlanner = args['skip-headroom']
   ? null
-  : await timed('Planner x4', () => playSeeds(config, planner({ name: 'Planner x4', rolloutBudget: budget * 4 }), headroomSeeds));
+  : await timed('Planner x4', () => playSeeds(version, planner({ name: 'Planner x4', rolloutBudget: budget * 4 }), headroomSeeds));
 const ablations = args['skip-ablations']
   ? null
   : {
-      memoryBlind: await timed('Planner memory-blind', () => playSeeds(config, planner({ isMemoryBlind: true }), plannerSeeds)),
-      randomPlacement: await timed('Planner random-placement', () =>
-        playSeeds(config, planner({ hasRandomPlacement: true }), plannerSeeds),
-      ),
-      noCarryRules: await timed('Planner, no-carry rules', () =>
-        playSeeds({ ...config, carriesMemoryBetweenSeasons: false }, planner({}), plannerSeeds),
-      ),
+      memoryBlind: await timed('Planner memory-blind', () => playSeeds(version, planner({ isMemoryBlind: true }), plannerSeeds)),
+      randomPlacement: await timed('Planner random-placement', () => playSeeds(version, planner({ hasRandomPlacement: true }), plannerSeeds)),
+      noCarryRules: await timed('Planner, no-carry rules', () => playSeeds(version, planner({}), plannerSeeds, false)),
     };
 
 const plannerOnSameSeeds = (subset: readonly GameRecord[]) =>
   plannerRecords.filter((record) => subset.some((other) => other.seed === record.seed));
+const target = calibratedTarget(plannerRecords);
 
 const report = {
-  rules: config.version,
-  target: config.targetScore,
+  rules: version,
   budget,
   scores: {
     random: summarizeScores(random),
-    greedy: summarizeScores(greedy),
-    humanProxy: summarizeScores(humanProxy),
-    orderReadingProxy: summarizeScores(orderReadingProxy),
+    ...Object.fromEntries(Object.entries(heuristicRecords).map(([name, records]) => [name, summarizeScores(records)])),
     planner: summarizeScores(plannerRecords),
     plannerX4: strongPlanner && summarizeScores(strongPlanner),
   },
   gradient: {
     greedyOverRandomSd: effectSize(greedy, random, greedy),
-    // Warning sign when this stays near zero while the Planner's lead grows: the depth is out of human reach.
-    humanProxyOverGreedySd: effectSize(humanProxy, greedy, greedy),
-    orderReadingProxyOverGreedySd: effectSize(orderReadingProxy, greedy, greedy),
-    plannerOverHumanProxySd: effectSize(plannerRecords, humanProxy.slice(0, plannerGameCount), plannerRecords),
+    // Warning sign when these stay near zero while the Planner's lead grows: the depth is out of human reach.
+    ...Object.fromEntries(
+      Object.entries(heuristicRecords)
+        .filter(([name]) => name !== 'greedy')
+        .map(([name, records]) => [`${name}OverGreedySd`, effectSize(records, greedy, greedy)]),
+    ),
     plannerOverGreedySd: effectSize(plannerRecords, greedy.slice(0, plannerGameCount), plannerRecords),
+    plannerOverHumanProxySd: effectSize(plannerRecords, humanProxy.slice(0, plannerGameCount), plannerRecords),
     headroomSd: strongPlanner && effectSize(strongPlanner, plannerOnSameSeeds(strongPlanner), plannerRecords),
   },
+  // M13: a one-move player should not win comfortably (target ≤ 15 %).
+  greedyCeiling: { greedyWinRate: summarizeScores(greedy).winRate, humanProxyWinRate: summarizeScores(humanProxy).winRate },
   density: decisionDensity(plannerRecords),
   ablations: ablations && {
     memoryBlindDropSd: effectSize(plannerRecords, ablations.memoryBlind, plannerRecords),
@@ -100,11 +100,11 @@ const report = {
     randomPlacement: summarizeScores(ablations.randomPlacement),
     noCarryRules: summarizeScores(ablations.noCarryRules),
   },
-  diversity: strategicDiversity(plannerRecords, categoryCount(buildOrderDeck(config.orderCatalogue))),
+  diversity: strategicDiversity(plannerRecords, ruleset.strategyLabelCount),
   tension: {
-    calibratedTarget: calibratedTarget(plannerRecords),
-    aucAtHalf: tensionAuc(plannerRecords, 0.5, calibratedTarget(plannerRecords)),
-    aucAtThreeQuarters: tensionAuc(plannerRecords, 0.75, calibratedTarget(plannerRecords)),
+    calibratedTarget: target,
+    aucAtHalf: tensionAuc(plannerRecords, 0.5, target),
+    aucAtThreeQuarters: tensionAuc(plannerRecords, 0.75, target),
   },
   variety: runVariety(plannerRecords),
   pacing: pacing(plannerRecords),
@@ -115,5 +115,5 @@ console.log(JSON.stringify(report, (_key, value) => (typeof value === 'number' ?
 
 mkdirSync('sims', { recursive: true });
 const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-writeFileSync(`sims/${config.version}-${stamp}.json`, JSON.stringify(report, null, 2));
-writeFileSync(`sims/${config.version}-${stamp}-planner-records.json`, JSON.stringify(plannerRecords));
+writeFileSync(`sims/${version}-${stamp}.json`, JSON.stringify(report, null, 2));
+writeFileSync(`sims/${version}-${stamp}-planner-records.json`, JSON.stringify(plannerRecords));

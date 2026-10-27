@@ -1,0 +1,69 @@
+{
+  "rules": "v6-3seasons",
+  "budget": 400,
+  "scores": {
+    "random": {
+      "games": 1000,
+      "mean": 1.108,
+      "sd": 0.9393274189546457,
+      "winRate": 0
+    },
+    "greedy": {
+      "games": 1000,
+      "mean": 3.459,
+      "sd": 0.9509568865095896,
+      "winRate": 0.012
+    },
+    "humanProxy": {
+      "games": 1000,
+      "mean": 4.074,
+      "sd": 0.9479050585369848,
+      "winRate": 0.057
+    },
+    "planner": {
+      "games": 21,
+      "mean": 6,
+      "sd": 0,
+      "winRate": 1
+    },
+    "plannerX4": null
+  },
+  "gradient": {
+    "greedyOverRandomSd": 2.472246674220064,
+    "humanProxyOverGreedySd": 0.6467170160124793,
+    "plannerOverGreedySd": null,
+    "plannerOverHumanProxySd": null,
+    "headroomSd": null
+  },
+  "greedyCeiling": {
+    "greedyWinRate": 0.012,
+    "humanProxyWinRate": 0.057
+  },
+  "density": {
+    "closeShare": 0,
+    "trivialShare": 0,
+    "delta": 0
+  },
+  "ablations": null,
+  "diversity": {
+    "labelShares": {
+      "fresh": 0.9047619047619048,
+      "carried": 0.09523809523809523
+    },
+    "topShare": 0.9047619047619048,
+    "normalizedEntropy": 0.4537163391869449
+  },
+  "tension": {
+    "calibratedTarget": 6,
+    "aucAtHalf": null,
+    "aucAtThreeQuarters": null
+  },
+  "variety": 0.9939393939393938,
+  "pacing": {
+    "meanDecisions": 33,
+    "coefficientOfVariation": 0.1598022303019582,
+    "meanDistinctChoices": 18.10822510822511,
+    "meanLookChanges": 1.2337662337662338,
+    "meanMemoryChanges": 1.2337662337662338
+  }
+}

@@ -151,7 +151,7 @@ export interface Pacing {
   meanDecisions: number;
   coefficientOfVariation: number;
   meanDistinctChoices: number;
-  meanShadeChanges: number;
+  meanLookChanges: number;
   meanMemoryChanges: number;
 }
 
@@ -162,7 +162,7 @@ export function pacing(records: readonly GameRecord[]): Pacing {
     meanDecisions: mean(lengths),
     coefficientOfVariation: standardDeviation(lengths) / mean(lengths),
     meanDistinctChoices: mean(decisions.map((decision) => decision.distinctCount)),
-    meanShadeChanges: mean(decisions.map((decision) => decision.shadeChanges)),
+    meanLookChanges: mean(decisions.map((decision) => decision.lookChanges)),
     meanMemoryChanges: mean(decisions.map((decision) => decision.memoryChanges)),
   };
 }

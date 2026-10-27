@@ -1,15 +1,7 @@
-import { emptyCells, legalMoves, pegsSoakedBy, rackView, rackViewAfterHang, type GameState, type Move } from '../engine/game.ts';
+import { emptyCells, pegsSoakedBy, rackView, rackViewAfterHang, type GameState, type Move } from '../engine/game.ts';
 import { acceptanceMasks, candidatePegSets, isBolt, maxPointsFromCandidates, orderAccepts } from '../engine/orders.ts';
 import type { Random } from '../engine/rng.ts';
 import { withDyeAdded, type Dye } from '../engine/shades.ts';
-import type { Bot } from './types.ts';
-
-export const randomBot: Bot = {
-  name: 'Random',
-  decide(state, rng) {
-    return { move: rng.pick(legalMoves(state)) };
-  },
-};
 
 /**
  * The move that would pay the most if the rack were inspected right now; ties
@@ -56,10 +48,3 @@ export function greedyMove(state: GameState, rng: Random): Move {
   }
   return rng.pick(bestMoves);
 }
-
-export const greedyBot: Bot = {
-  name: 'Greedy',
-  decide(state, rng) {
-    return { move: greedyMove(state, rng) };
-  },
-};

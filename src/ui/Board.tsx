@@ -1,138 +1,179 @@
-import { useMemo, useState } from 'react';
-import { areKin, inspectionsSeen, pegsOf, rackView, rackViewAfterHang, type GameState, type Move } from '../engine/game.ts';
-import { bestAssignment, isBolt, type PostedOrder } from '../engine/orders.ts';
-import { clothName, dyeLook } from './dyeLook.ts';
-import { Hand } from './Hand.tsx';
-import { OrderCard } from './OrderCard.tsx';
-import { Rack } from './Rack.tsx';
-import { soakedBy } from './session.ts';
-import type { LastHang } from './useGameSession.ts';
+import { useMemo } from 'react';
+import {
+  bestFill,
+  canInspectEarly,
+  neighbourCell,
+  openCommissions,
+  OPPOSITE,
+  rackAfterHang,
+  SIDES,
+  type ClothLook,
+  type HangMove,
+  type SelvedgeState,
+} from '../selvedge/engine.ts';
+import { ClothTile, CommissionTile, dyeName } from './ClothTile.tsx';
+import { Rack, type PegView } from './Rack.tsx';
+import { touchedBy } from './session.ts';
 
 interface BoardProps {
-  game: GameState;
+  game: SelvedgeState;
   selectedClothId: number | null;
-  preview: Move | null;
-  lastHang: LastHang | null;
+  preview: HangMove | null;
   onSelectCloth: (clothId: number) => void;
   onTapPeg: (cell: number) => void;
-  onConfirm: () => void;
+  onHang: () => void;
+  onInspectNow: () => void;
+  onShowCloths: () => void;
 }
 
-export function Board({ game, selectedClothId, preview, lastHang, onSelectCloth, onTapPeg, onConfirm }: BoardProps) {
-  const capacity = game.config.memoryCapacity;
-  const [tappedClothId, setTappedClothId] = useState<number | null>(null);
-  const tappedIsOnRack = tappedClothId !== null && game.rack.includes(tappedClothId);
-  // A tapped hung cloth wins; otherwise the cloth in hand is the one whose kin we show.
-  const focusedClothId = tappedIsOnRack ? tappedClothId : selectedClothId;
+/** Sides that a hang on `cell` stains, on the hung cloth and on each neighbour it touches. */
+function freshSidesOfHang(rack: readonly (unknown | null)[], game: SelvedgeState, cell: number): Map<number, number[]> {
+  const fresh = new Map<number, number[]>([[cell, []]]);
+  for (const side of SIDES) {
+    const neighbourAt = neighbourCell(cell, side, game.config);
+    if (neighbourAt === null || rack[neighbourAt] === null) continue;
+    fresh.get(cell)!.push(side);
+    fresh.set(neighbourAt, [OPPOSITE[side]]);
+  }
+  return fresh;
+}
+
+function pegViews(game: SelvedgeState, preview: HangMove | null): { pegs: (PegView | null)[]; looks: (ClothLook | null)[] } {
+  const occupants = game.rack.slice();
+  if (preview) occupants[preview.cell] = preview.clothId;
+  const looks: (ClothLook | null)[] = preview ? rackAfterHang(game, preview) : game.rack.map((id) => (id === null ? null : game.cloths[id]));
+  const lastHang = game.seasonHangs.at(-1);
+  const freshCell = preview?.cell ?? lastHang?.cell;
+  const fresh = freshCell === undefined ? new Map<number, number[]>() : freshSidesOfHang(occupants, game, freshCell);
+  const pegs = occupants.map((clothId, cell): PegView | null => {
+    const look = looks[cell];
+    if (clothId === null || look === null) return null;
+    return { clothId, body: look.body, edges: look.edges, freshSides: fresh.get(cell) ?? [] };
+  });
+  return { pegs, looks };
+}
+
+export function Board({ game, selectedClothId, preview, onSelectCloth, onTapPeg, onHang, onInspectNow, onShowCloths }: BoardProps) {
   const view = useMemo(() => {
-    const rack = preview ? rackViewAfterHang(game, preview) : rackView(game);
-    const occupants = game.rack.slice();
-    if (preview) occupants[preview.cell] = preview.clothId;
-    const soaked = preview ? soakedBy(game, preview.cell) : (lastHang?.soakedClothIds ?? []);
-    const assignment = bestAssignment(game.display, rack, capacity);
-    const shippingCells = new Set(assignment.pegMaskByOrder.flatMap(pegsOf));
-    return {
-      memories: rack.memories,
-      occupants,
-      freshByClothId: new Map(soaked.map((clothId) => [clothId, 1])),
-      assignment,
-      shippingCells,
-    };
-  }, [capacity, game, lastHang, preview]);
+    const { pegs, looks } = pegViews(game, preview);
+    const open = openCommissions(game);
+    const fill = bestFill(open, looks);
+    const readyIds = new Set(open.filter((_, index) => fill[index] !== -1).map((commission) => commission.id));
+    return { pegs, readyIds, shippingCells: new Set(fill.filter((cell) => cell !== -1)) };
+  }, [game, preview]);
 
   return (
     <div className="flex flex-col gap-4">
-      <section aria-label="Orders" className="grid grid-cols-4 gap-2">
-        {game.display.map((order, index) => (
-          <OrderCard
-            key={order.id}
-            order={order}
-            capacity={capacity}
-            isMet={view.assignment.pegMaskByOrder[index] !== 0}
-            isLeaving={isOrderLeaving(game, order)}
-          />
-        ))}
-      </section>
-      <p className="-mt-2 text-xs text-chalk-soft">
-        At the end of the season these orders would take {view.assignment.points} points from the rack as it stands.
-      </p>
+      <PatternBook game={game} readyIds={view.readyIds} />
       <Rack
         game={game}
-        memories={view.memories}
-        occupants={view.occupants}
-        highlights={{
-          previewCell: preview?.cell ?? null,
-          freshByClothId: view.freshByClothId,
-          shippingCells: view.shippingCells,
-          focusedClothId,
-          kinCells: kinCellsOf(game, focusedClothId),
-        }}
+        pegs={view.pegs}
+        previewCell={preview?.cell ?? null}
+        shippingCells={view.shippingCells}
         canHang={selectedClothId !== null}
         onTapPeg={onTapPeg}
-        onTapCloth={(clothId) => setTappedClothId((current) => (current === clothId ? null : clothId))}
       />
-      {focusedClothId !== null && game.display.some(isBolt) && <KinNote game={game} clothId={focusedClothId} />}
-      <ActionHint game={game} selectedClothId={selectedClothId} preview={preview} onConfirm={onConfirm} />
-      <Hand game={game} selectedClothId={selectedClothId} onSelect={onSelectCloth} />
+      <ActionBar game={game} selectedClothId={selectedClothId} preview={preview} readyCount={view.readyIds.size} onHang={onHang} onInspectNow={onInspectNow} />
+      <Hand game={game} selectedClothId={selectedClothId} onSelect={onSelectCloth} onShowCloths={onShowCloths} />
     </div>
   );
 }
 
-function kinCellsOf(game: GameState, clothId: number | null): Set<number> {
-  const cells = new Set<number>();
-  if (clothId === null) return cells;
-  game.rack.forEach((otherId, cell) => {
-    if (otherId !== null && otherId !== clothId && areKin(game, clothId, otherId)) cells.add(cell);
-  });
-  return cells;
-}
-
-/** Bolts need two kin cloths, so say plainly who a cloth has shared dye with and where they are. */
-function KinNote({ game, clothId }: { game: GameState; clothId: number }) {
-  const kin = game.cloths.filter((other) => other.id !== clothId && !other.isShipped && areKin(game, clothId, other.id));
-  const whereIs = (otherId: number) => (game.rack.includes(otherId) ? 'on the rack' : game.hand.includes(otherId) ? 'in hand' : 'in the basket');
+function PatternBook({ game, readyIds }: { game: SelvedgeState; readyIds: ReadonlySet<number> }) {
   return (
-    <p className="-mt-2 text-sm text-chalk-soft">
-      {kin.length === 0
-        ? `${clothName(clothId)} hasn't shared dye with any cloth you still own.`
-        : `${clothName(clothId)} has shared dye with ${kin.map((other) => `${clothName(other.id)} (${whereIs(other.id)})`).join(', ')}.`}
-    </p>
+    <section aria-label="Pattern book">
+      <ul className="grid grid-cols-4 gap-2">
+        {game.commissions.map((commission) => {
+          const isDone = commission.completedSeason !== null;
+          const isReady = readyIds.has(commission.id);
+          return (
+            <li
+              key={commission.id}
+              className={`relative rounded-sm border p-1.5 ${isReady ? 'border-weld bg-weld/10' : isDone ? 'border-transparent opacity-35' : 'border-slate-line'}`}
+            >
+              <CommissionTile body={commission.body} edges={commission.edges} />
+              <p className={`mt-1 text-center text-xs ${isReady ? 'font-semibold text-weld' : 'text-chalk-soft'}`}>
+                {isDone ? 'filled' : isReady ? 'ready' : 'open'}
+              </p>
+            </li>
+          );
+        })}
+      </ul>
+      <p className="mt-1.5 text-xs text-chalk-soft">Dashed sides take any stain. "Ready" ones would be filled if you inspected now.</p>
+    </section>
   );
 }
 
-function isOrderLeaving(game: GameState, order: PostedOrder): boolean {
-  const lifetime = game.config.orderLifetimeInspections;
-  return lifetime !== null && inspectionsSeen(order, game.season) >= lifetime;
-}
-
-interface ActionHintProps {
-  game: GameState;
+interface ActionBarProps {
+  game: SelvedgeState;
   selectedClothId: number | null;
-  preview: Move | null;
-  onConfirm: () => void;
+  preview: HangMove | null;
+  readyCount: number;
+  onHang: () => void;
+  onInspectNow: () => void;
 }
 
-function ActionHint({ game, selectedClothId, preview, onConfirm }: ActionHintProps) {
+function ActionBar({ game, selectedClothId, preview, readyCount, onHang, onInspectNow }: ActionBarProps) {
   if (preview) {
-    const dyes = game.cloths[preview.clothId].dyes;
-    const bleed = dyes[dyes.length - 1];
-    const soakedCount = soakedBy(game, preview.cell).length;
+    const touched = touchedBy(game, preview.cell);
+    const hung = game.cloths[preview.clothId];
     return (
-      <div className="flex items-center gap-3">
-        <p className="flex-1 text-sm">
-          {soakedCount === 0
-            ? `${clothName(preview.clothId)} touches nothing here.`
-            : `${clothName(preview.clothId)} bleeds ${dyeLook(bleed).name.toLowerCase()} into ${soakedCount} ${soakedCount === 1 ? 'cloth' : 'cloths'}.`}
+      <div className="flex min-h-12 items-center gap-3">
+        <p className="flex-1">
+          {touched.length === 0
+            ? 'Touches nothing here, so no edges change.'
+            : `Stains ${touched.length} ${touched.length === 1 ? 'neighbour' : 'neighbours'} ${dyeName(hung.body).toLowerCase()} and takes their colours.`}
         </p>
-        <button type="button" onClick={onConfirm} className="rounded-sm bg-weld px-4 py-2 font-semibold text-slate-deep">
+        <button type="button" onClick={onHang} className="rounded-sm bg-weld px-5 py-3 font-semibold text-slate-deep">
           Hang it
         </button>
       </div>
     );
   }
-  const message =
-    selectedClothId === null
-      ? 'Pick up a cloth from your hand.'
-      : `Tap an empty peg to see what ${clothName(selectedClothId)} would bleed.`;
-  return <p className="min-h-10 text-sm text-chalk-soft">{message}</p>;
+  return (
+    <div className="flex min-h-12 items-center gap-3">
+      <p className="flex-1 text-chalk-soft">
+        {selectedClothId === null ? 'Pick a cloth from your hand.' : 'Tap an empty peg to preview, tap again to hang.'}
+      </p>
+      {canInspectEarly(game) && (
+        <button type="button" onClick={onInspectNow} className="rounded-sm border border-weld px-4 py-3 font-semibold text-weld">
+          Inspect now{readyCount > 0 ? ` (${readyCount})` : ''}
+        </button>
+      )}
+    </div>
+  );
+}
+
+interface HandProps {
+  game: SelvedgeState;
+  selectedClothId: number | null;
+  onSelect: (clothId: number) => void;
+  onShowCloths: () => void;
+}
+
+function Hand({ game, selectedClothId, onSelect, onShowCloths }: HandProps) {
+  return (
+    <section aria-label="Your hand" className="grid grid-cols-4 items-end gap-2">
+      {game.hand.map((clothId) => {
+        const cloth = game.cloths[clothId];
+        const isSelected = clothId === selectedClothId;
+        return (
+          <button
+            key={clothId}
+            type="button"
+            onClick={() => onSelect(clothId)}
+            aria-pressed={isSelected}
+            aria-label={`Pick up the ${dyeName(cloth.body).toLowerCase()} cloth`}
+            className={`rounded-sm p-1.5 transition-transform ${isSelected ? '-translate-y-2 bg-slate-raised outline-2 outline-chalk' : 'bg-slate-deep'}`}
+          >
+            <ClothTile body={cloth.body} edges={cloth.edges} />
+          </button>
+        );
+      })}
+      <button type="button" onClick={onShowCloths} className="flex aspect-square flex-col items-center justify-center rounded-sm border border-slate-line text-xs text-chalk-soft">
+        <span className="text-2xl font-extrabold text-chalk">{game.drawPile.length}</span>
+        in basket
+      </button>
+    </section>
+  );
 }

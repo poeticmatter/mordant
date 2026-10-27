@@ -1,7 +1,7 @@
-import type { Move } from '../engine/game.ts';
+import type { SelvedgeMove } from '../selvedge/engine.ts';
 
 export interface LoggedMove {
-  move: Move;
+  move: SelvedgeMove;
   /** Milliseconds since the game started. */
   atMs: number;
 }
@@ -11,8 +11,9 @@ export interface GameLog {
   seed: number;
   startedAt: string;
   moves: LoggedMove[];
+  /** Commissions filled, once the game is over. */
   finalScore: number | null;
-  /** Free-form UI events (rules opened, undo used, …) that help explain hesitation. */
+  /** UI events (rules opened, menu opened, …) that help explain hesitation. */
   events: { kind: string; atMs: number }[];
 }
 
@@ -24,7 +25,7 @@ export function elapsedMs(log: GameLog): number {
   return Date.now() - Date.parse(log.startedAt);
 }
 
-export function withMove(log: GameLog, move: Move): GameLog {
+export function withMove(log: GameLog, move: SelvedgeMove): GameLog {
   return { ...log, moves: [...log.moves, { move, atMs: elapsedMs(log) }] };
 }
 
@@ -36,15 +37,35 @@ export function withFinalScore(log: GameLog, finalScore: number): GameLog {
   return { ...log, finalScore };
 }
 
-/** Compact text a playtester can paste into chat. One move per line keeps it diffable. */
+/** `h <cloth> <peg>` for a hang, `i` for calling the inspection early. */
+export function encodeMove(move: SelvedgeMove): string {
+  return move.kind === 'hang' ? `h ${move.clothId} ${move.cell}` : 'i';
+}
+
+export function decodeMove(text: string): SelvedgeMove {
+  const [kind, clothId, cell] = text.trim().split(' ');
+  if (kind === 'i') return { kind: 'inspect' };
+  if (kind === 'h') return { kind: 'hang', clothId: Number(clothId), cell: Number(cell) };
+  throw new Error(`Unrecognised logged move "${text}"`);
+}
+
+/** Compact text a playtester can paste into chat. One move per line: `m <move> <ms>`. */
 export function formatLogForExport(logs: readonly GameLog[]): string {
   return logs
     .map((log) =>
       [
         `# game rules=${log.rules} seed=${log.seed} started=${log.startedAt} final=${log.finalScore ?? 'unfinished'}`,
-        ...log.moves.map(({ move, atMs }) => `m ${move.clothId} ${move.cell} ${atMs}`),
+        ...log.moves.map(({ move, atMs }) => `m ${encodeMove(move)} ${atMs}`),
         ...log.events.map(({ kind, atMs }) => `e ${kind} ${atMs}`),
       ].join('\n'),
     )
     .join('\n');
+}
+
+/** Moves from an exported log, for replaying a game exactly. */
+export function parseExportedMoves(text: string): SelvedgeMove[] {
+  return text
+    .split('\n')
+    .filter((line) => line.startsWith('m '))
+    .map((line) => decodeMove(line.slice(2).replace(/\s\d+$/, '')));
 }

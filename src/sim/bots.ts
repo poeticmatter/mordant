@@ -1,27 +1,23 @@
-import { humanProxyBot, orderReadingProxyBot } from '../bots/humanProxy.ts';
 import { createPlanner, type PlannerOptions } from '../bots/planner.ts';
-import { greedyBot, randomBot } from '../bots/simpleBots.ts';
-import type { Bot } from '../bots/types.ts';
+import type { Bot, GameAdapter } from '../bots/types.ts';
 
 /** Serializable description of a bot, so worker threads can rebuild it. */
 export type BotSpec =
   | { kind: 'random' }
-  | { kind: 'greedy' }
-  | { kind: 'humanProxy' }
-  | { kind: 'orderReadingProxy' }
+  /** One of the adapter's named one-move heuristics (greedy, humanProxy, …). */
+  | { kind: 'heuristic'; heuristic: string }
   | { kind: 'planner'; options: Partial<PlannerOptions> };
 
-export function buildBot(spec: BotSpec): Bot {
+export function buildBot<S, M>(adapter: GameAdapter<S, M>, spec: BotSpec): Bot<S, M> {
   switch (spec.kind) {
     case 'random':
-      return randomBot;
-    case 'greedy':
-      return greedyBot;
-    case 'humanProxy':
-      return humanProxyBot;
-    case 'orderReadingProxy':
-      return orderReadingProxyBot;
+      return { name: 'Random', decide: (state, rng) => ({ move: rng.pick(adapter.legalMoves(state)) }) };
+    case 'heuristic': {
+      const heuristic = adapter.heuristics[spec.heuristic];
+      if (!heuristic) throw new Error(`This ruleset has no "${spec.heuristic}" heuristic`);
+      return { name: spec.heuristic, decide: (state, rng) => ({ move: heuristic(state, rng) }) };
+    }
     case 'planner':
-      return createPlanner(spec.options);
+      return createPlanner(adapter, spec.options);
   }
 }

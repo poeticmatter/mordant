@@ -1,0 +1,96 @@
+{
+  "rules": "v6",
+  "budget": 400,
+  "scores": {
+    "random": {
+      "games": 2000,
+      "mean": 1.2045,
+      "sd": 1.0102869641839405,
+      "winRate": 0
+    },
+    "greedy": {
+      "games": 2000,
+      "mean": 4.1255,
+      "sd": 1.0921308300748644,
+      "winRate": 0.0005
+    },
+    "humanProxy": {
+      "games": 2000,
+      "mean": 4.8875,
+      "sd": 1.128203771488113,
+      "winRate": 0.004
+    },
+    "planner": {
+      "games": 100,
+      "mean": 7.69,
+      "sd": 0.5038849074937648,
+      "winRate": 0.71
+    },
+    "plannerX4": {
+      "games": 34,
+      "mean": 7.852941176470588,
+      "sd": 0.3541645464350675,
+      "winRate": 0.8529411764705882
+    }
+  },
+  "gradient": {
+    "greedyOverRandomSd": 2.6745879885102855,
+    "humanProxyOverGreedySd": 0.6977186056983358,
+    "plannerOverGreedySd": 6.965876428921289,
+    "plannerOverHumanProxySd": 5.556824501703593,
+    "headroomSd": 0.350220031619973
+  },
+  "greedyCeiling": {
+    "greedyWinRate": 0.0005,
+    "humanProxyWinRate": 0.004
+  },
+  "density": {
+    "closeShare": 0.7843137254901961,
+    "trivialShare": 0.10628019323671498,
+    "delta": 0.1259712268734412
+  },
+  "ablations": {
+    "memoryBlindDropSd": 2.341804611432229,
+    "randomPlacementDropSd": 10.180896319192653,
+    "noCarryRulesDeltaSd": 2.321958809640431,
+    "memoryBlind": {
+      "games": 100,
+      "mean": 6.51,
+      "sd": 0.7549172140042908,
+      "winRate": 0.06
+    },
+    "randomPlacement": {
+      "games": 100,
+      "mean": 2.56,
+      "sd": 1.259523719506703,
+      "winRate": 0
+    },
+    "noCarryRules": {
+      "games": 100,
+      "mean": 6.52,
+      "sd": 0.7277362159464105,
+      "winRate": 0.08
+    }
+  },
+  "diversity": {
+    "labelShares": {
+      "carried": 0.28169014084507044,
+      "fresh": 0.7183098591549296
+    },
+    "topShare": 0.7183098591549296,
+    "normalizedEntropy": 0.8577435372751958
+  },
+  "tension": {
+    "calibratedTarget": 8,
+    "aucAtHalf": 0.5726080621661,
+    "aucAtThreeQuarters": 0.702525497814473
+  },
+  "variety": 0.9943795833795873,
+  "pacing": {
+    "meanDecisions": 35.19,
+    "coefficientOfVariation": 0.06709039048535756,
+    "meanDistinctChoices": 18.248081841432224,
+    "meanLookChanges": 1.2315998863313442,
+    "meanMemoryChanges": 1.2315998863313442
+  }
+}

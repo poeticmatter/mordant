@@ -1,0 +1,69 @@
+{
+  "rules": "v6",
+  "budget": 400,
+  "scores": {
+    "random": {
+      "games": 1000,
+      "mean": 1.514,
+      "sd": 1.0118320018659177,
+      "winRate": 0
+    },
+    "greedy": {
+      "games": 1000,
+      "mean": 4.185,
+      "sd": 0.9169378386782788,
+      "winRate": 0.064
+    },
+    "humanProxy": {
+      "games": 1000,
+      "mean": 4.817,
+      "sd": 0.8622708391219117,
+      "winRate": 0.219
+    },
+    "planner": {
+      "games": 21,
+      "mean": 6,
+      "sd": 0,
+      "winRate": 1
+    },
+    "plannerX4": null
+  },
+  "gradient": {
+    "greedyOverRandomSd": 2.9129564593496498,
+    "humanProxyOverGreedySd": 0.6892506485619546,
+    "plannerOverGreedySd": null,
+    "plannerOverHumanProxySd": null,
+    "headroomSd": null
+  },
+  "greedyCeiling": {
+    "greedyWinRate": 0.064,
+    "humanProxyWinRate": 0.219
+  },
+  "density": {
+    "closeShare": 0,
+    "trivialShare": 0,
+    "delta": 0
+  },
+  "ablations": null,
+  "diversity": {
+    "labelShares": {
+      "fresh": 0.7142857142857143,
+      "carried": 0.2857142857142857
+    },
+    "topShare": 0.7142857142857143,
+    "normalizedEntropy": 0.8631205685666311
+  },
+  "tension": {
+    "calibratedTarget": 6,
+    "aucAtHalf": null,
+    "aucAtThreeQuarters": null
+  },
+  "variety": 0.9939393939393938,
+  "pacing": {
+    "meanDecisions": 33.095238095238095,
+    "coefficientOfVariation": 0.19016771450425068,
+    "meanDistinctChoices": 18.3136690647482,
+    "meanLookChanges": 1.256115107913669,
+    "meanMemoryChanges": 1.256115107913669
+  }
+}

@@ -1,0 +1,109 @@
+
+> solo-deck@0.1.0 sim
+> node scripts/sim.mjs --rules v6 --games 2000 --planner-games 100 --budget 400
+
+Ruleset v6
+  Random                     2000 games in 1.1s
+  greedy                     2000 games in 2.0s
+  humanProxy                 2000 games in 5.0s
+  Planner                    100 games in 182.5s
+  Planner x4                 34 games in 252.9s
+  Planner memory-blind       100 games in 197.9s
+  Planner random-placement   100 games in 236.1s
+  Planner, no-carry rules    100 games in 183.6s
+{
+  "rules": "v6",
+  "budget": 400,
+  "scores": {
+    "random": {
+      "games": 2000,
+      "mean": 1.205,
+      "sd": 1.01,
+      "winRate": 0
+    },
+    "greedy": {
+      "games": 2000,
+      "mean": 4.126,
+      "sd": 1.092,
+      "winRate": 0.001
+    },
+    "humanProxy": {
+      "games": 2000,
+      "mean": 4.888,
+      "sd": 1.128,
+      "winRate": 0.004
+    },
+    "planner": {
+      "games": 100,
+      "mean": 7.69,
+      "sd": 0.504,
+      "winRate": 0.71
+    },
+    "plannerX4": {
+      "games": 34,
+      "mean": 7.853,
+      "sd": 0.354,
+      "winRate": 0.853
+    }
+  },
+  "gradient": {
+    "greedyOverRandomSd": 2.675,
+    "humanProxyOverGreedySd": 0.698,
+    "plannerOverGreedySd": 6.966,
+    "plannerOverHumanProxySd": 5.557,
+    "headroomSd": 0.35
+  },
+  "greedyCeiling": {
+    "greedyWinRate": 0.001,
+    "humanProxyWinRate": 0.004
+  },
+  "density": {
+    "closeShare": 0.784,
+    "trivialShare": 0.106,
+    "delta": 0.126
+  },
+  "ablations": {
+    "memoryBlindDropSd": 2.342,
+    "randomPlacementDropSd": 10.181,
+    "noCarryRulesDeltaSd": 2.322,
+    "memoryBlind": {
+      "games": 100,
+      "mean": 6.51,
+      "sd": 0.755,
+      "winRate": 0.06
+    },
+    "randomPlacement": {
+      "games": 100,
+      "mean": 2.56,
+      "sd": 1.26,
+      "winRate": 0
+    },
+    "noCarryRules": {
+      "games": 100,
+      "mean": 6.52,
+      "sd": 0.728,
+      "winRate": 0.08
+    }
+  },
+  "diversity": {
+    "labelShares": {
+      "carried": 0.282,
+      "fresh": 0.718
+    },
+    "topShare": 0.718,
+    "normalizedEntropy": 0.858
+  },
+  "tension": {
+    "calibratedTarget": 8,
+    "aucAtHalf": 0.573,
+    "aucAtThreeQuarters": 0.703
+  },
+  "variety": 0.994,
+  "pacing": {
+    "meanDecisions": 35.19,
+    "coefficientOfVariation": 0.067,
+    "meanDistinctChoices": 18.248,
+    "meanLookChanges": 1.232,
+    "meanMemoryChanges": 1.232
+  }
+}

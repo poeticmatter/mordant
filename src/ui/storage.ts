@@ -1,6 +1,7 @@
 import type { GameLog } from './gameLog.ts';
 
-const LOGS_KEY = 'mordant.logs.v1';
+// v6 moves are logged in a different shape from v1–v5, so they get their own key.
+const LOGS_KEY = 'selvedge.logs.v6';
 
 /**
  * Logs live in this browser only. Storage can be unavailable (private mode,

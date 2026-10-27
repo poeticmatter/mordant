@@ -1,29 +1,24 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { RulesConfig } from '../engine/config.ts';
-import { applyMove, type GameState, type Move } from '../engine/game.ts';
+import { applyMove, completedCount, type HangMove, type SelvedgeConfig, type SelvedgeMove, type SelvedgeState } from '../selvedge/engine.ts';
 import { startLog, withEvent, withFinalScore, withMove, type GameLog } from './gameLog.ts';
-import { inspectionAfter, randomSeed, replayGame, soakedBy, type InspectionReport } from './session.ts';
+import { inspectionAfter, randomSeed, replayGame, touchedBy, type InspectionReport } from './session.ts';
 import { loadLogs, saveLogs } from './storage.ts';
-
-export interface LastHang {
-  move: Move;
-  soakedClothIds: number[];
-}
 
 interface SessionState {
   logs: GameLog[];
-  game: GameState;
-  lastHang: LastHang | null;
+  game: SelvedgeState;
+  /** Cloths stained by the last hang, so they can flash once. */
+  justTouched: number[];
   inspection: InspectionReport | null;
 }
 
-function resumeOrStart(config: RulesConfig): SessionState {
+function resumeOrStart(config: SelvedgeConfig): SessionState {
   const logs = loadLogs();
   const current = logs[logs.length - 1];
   if (current && current.finalScore === null && current.rules === config.version) {
     try {
       const game = replayGame(current.seed, current.moves.map((entry) => entry.move), config);
-      return { logs, game, lastHang: null, inspection: null };
+      return { logs, game, justTouched: [], inspection: null };
     } catch (error) {
       console.warn(`Saved game (seed ${current.seed}) no longer replays under ${config.version}; starting fresh.`, error);
     }
@@ -31,39 +26,32 @@ function resumeOrStart(config: RulesConfig): SessionState {
   return startFresh(config, logs, randomSeed());
 }
 
-function startFresh(config: RulesConfig, logs: GameLog[], seed: number): SessionState {
-  const withoutUnfinished = logs.filter((log) => log.finalScore !== null || log.moves.length > 0);
-  return {
-    logs: [...withoutUnfinished, startLog(config.version, seed)],
-    game: replayGame(seed, [], config),
-    lastHang: null,
-    inspection: null,
-  };
+function startFresh(config: SelvedgeConfig, logs: GameLog[], seed: number): SessionState {
+  const keptLogs = logs.filter((log) => log.finalScore !== null || log.moves.length > 0);
+  return { logs: [...keptLogs, startLog(config.version, seed)], game: replayGame(seed, [], config), justTouched: [], inspection: null };
 }
 
 function replaceCurrentLog(logs: GameLog[], log: GameLog): GameLog[] {
   return [...logs.slice(0, -1), log];
 }
 
-export function useGameSession(config: RulesConfig) {
+export function useGameSession(config: SelvedgeConfig) {
   const [session, setSession] = useState<SessionState>(() => resumeOrStart(config));
   const [selectedClothId, setSelectedClothId] = useState<number | null>(null);
   const [previewCell, setPreviewCell] = useState<number | null>(null);
 
   useEffect(() => saveLogs(session.logs), [session.logs]);
 
-  const currentLog = session.logs[session.logs.length - 1];
-
-  const hang = useCallback((move: Move) => {
+  const play = useCallback((move: SelvedgeMove) => {
     setSession((previous) => {
       const next = applyMove(previous.game, move);
       let log = withMove(previous.logs[previous.logs.length - 1], move);
-      if (next.isOver) log = withFinalScore(log, next.score);
+      if (next.isOver) log = withFinalScore(log, completedCount(next));
       return {
         logs: replaceCurrentLog(previous.logs, log),
         game: next,
-        lastHang: { move, soakedClothIds: soakedBy(previous.game, move.cell) },
-        inspection: inspectionAfter(previous.game, move, next),
+        justTouched: move.kind === 'hang' ? touchedBy(previous.game, move.cell) : [],
+        inspection: inspectionAfter(previous.game, next),
       };
     });
     setSelectedClothId(null);
@@ -79,56 +67,45 @@ export function useGameSession(config: RulesConfig) {
 
   const selectCloth = useCallback((clothId: number) => {
     setSelectedClothId((current) => (current === clothId ? null : clothId));
+    setPreviewCell(null);
   }, []);
 
-  /** First tap on a peg previews the hang, a second tap on the same peg commits it. */
+  /** First tap on an empty peg previews the hang; a second tap on the same peg hangs it. */
   const tapPeg = useCallback(
     (cell: number) => {
       if (selectedClothId === null || session.game.rack[cell] !== null) return;
       if (previewCell === cell) {
-        hang({ clothId: selectedClothId, cell });
+        play({ kind: 'hang', clothId: selectedClothId, cell });
         return;
       }
       setPreviewCell(cell);
     },
-    [hang, previewCell, selectedClothId, session.game.rack],
+    [play, previewCell, selectedClothId, session.game.rack],
   );
 
-  const confirmPreview = useCallback(() => {
-    if (selectedClothId !== null && previewCell !== null) hang({ clothId: selectedClothId, cell: previewCell });
-  }, [hang, previewCell, selectedClothId]);
-
-  const dismissInspection = useCallback(() => {
-    setSession((previous) => ({ ...previous, inspection: null, lastHang: null }));
-  }, []);
-
-  const newGame = useCallback(
-    (seed: number = randomSeed()) => {
-      setSession((previous) => startFresh(config, previous.logs, seed));
-      setSelectedClothId(null);
-      setPreviewCell(null);
-    },
-    [config],
-  );
-
-  const preview = useMemo(
-    () => (selectedClothId !== null && previewCell !== null ? { clothId: selectedClothId, cell: previewCell } : null),
+  const preview = useMemo<HangMove | null>(
+    () => (selectedClothId !== null && previewCell !== null ? { kind: 'hang', clothId: selectedClothId, cell: previewCell } : null),
     [previewCell, selectedClothId],
   );
 
   return {
     game: session.game,
     logs: session.logs,
-    currentLog,
-    lastHang: session.lastHang,
+    currentLog: session.logs[session.logs.length - 1],
+    justTouched: session.justTouched,
     inspection: session.inspection,
     selectedClothId,
     preview,
     selectCloth,
     tapPeg,
-    confirmPreview,
-    dismissInspection,
-    newGame,
+    hangPreview: () => preview && play(preview),
+    inspectNow: () => play({ kind: 'inspect' }),
+    dismissInspection: () => setSession((previous) => ({ ...previous, inspection: null, justTouched: [] })),
+    newGame: (seed: number = randomSeed()) => {
+      setSession((previous) => startFresh(config, previous.logs, seed));
+      setSelectedClothId(null);
+      setPreviewCell(null);
+    },
     recordEvent,
   };
 }

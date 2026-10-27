@@ -362,3 +362,146 @@ Built: playable UI (mobile portrait + PC; tap-to-preview, tap-again-to-hang; no 
 rules sheet, seed display and seeded new games, deck view, kin highlighting, per-game logs with
 millisecond timestamps, and "Copy log" export. Brief: `PLAYTEST_BRIEF.md`.
 **Stopped here for the human playtester.**
+
+---
+
+## Playtest 1 debrief (v5, seed 345719, phone, final 42 / target 40)
+Log replayed through the engine (`analysis: scratchpad analyze_log.ts`): 39 hangs, ~10 min on the rules
+before the first hang, then **5.6 min of play** (median ~7 s per hang). Season scores 16 / 10 / 8 / 8.
+Shipped 3 bolts, 2 sequences, 4 endings. **33 of 39 hangs were exactly Greedy's best move.**
+
+What the player said (paraphrased) and what the log says:
+| Topic | Player | Log / my reading |
+|---|---|---|
+| Strategy | "Fill orders that seemed simple, explore." Centre first to keep options open, then match the first hang to an order. Didn't change. | One-hang order matching = Greedy. It won without trying. |
+| Clever moments | None. | Decision-density metric said ~80 % close calls. **M3 misled.** |
+| Stuck | Last few hangs of a season felt cramped. | Last hangs have 1–4 distinct options; forced moves. |
+| Tension | One moment: feared ruining a finished cloth; the soak-once rule saved it. | Entropy/protection is the only tension felt. |
+| Memory | Didn't notice cloth names until the end-of-season report. Multi-stripe cloths: "find which order they could match". | Carried memory was read reactively, never invested in. **M6 (8.5 SD) didn't reach the human.** |
+| Description | "A deck building game with spatial elements about dyeing cloths and filling orders." | No memory in the sentence. The one-sentence hook failed. |
+| Bolts / kin | Happened by accident. Didn't know cloths could be tapped. | Kin was undiscoverable. |
+| Orders | Picked the easiest. Didn't notice "last season" marks; no penalty, so didn't care. | Withdrawal (v3) created no felt pressure. |
+| Win condition | Wasn't trying to win. Score attack isn't exciting as a win, worse as a loss. | Target irrelevant; won anyway. |
+| Rules | Unintuitive: old dye deleted; dye spreads in every direction but lands at the bottom; soak-once only understood afterwards. | Three invisible-bookkeeping rules. |
+| Legibility | "any" read as white. Rules screen doesn't reflow on mobile (can't zoom to see whole lines). Bit small on phone. | Bugs to fix regardless of design. |
+| Pauses | Longest pause may have been distraction. | Remote timing is noisy; treat gaps as weak evidence. |
+| Motivation | Could play again for feedback, but not motivated. | — |
+
+### What I learned
+1. **The bots' depth is not the player's depth.** Every memory metric passed because a 1,600-rollout searcher
+   exploits stripe queues; a human with a one-hang heuristic scored *above* the target. The metrics measured the
+   game the Planner plays, not the one the human plays.
+2. **The invisible queue is the core problem**, not a tuning issue. FIFO deletion, hem-insertion and soak-once are
+   bookkeeping rules with no physical intuition; the player can't predict them, so can't plan with them, so
+   memory becomes something you *react* to.
+3. **The ruin moment is the seed.** The only felt tension was "will this hang ruin my finished cloth?"
+4. **Score attack is the wrong frame.** A goal you can lose in a specific, legible way is needed.
+
+### Metric changes (effective immediately)
+- **M13 Greedy ceiling (new):** plain Greedy must win ≤ 15 % against the target. If a one-move heuristic wins
+  comfortably, the depth is decorative for humans whatever the Planner says. (v5: Greedy ≈ 25 % at target 40,
+  and the human, playing Greedy-like, won.)
+- **M3 is demoted** to a diagnostic. It counted near-equivalent options as agonising choices.
+- **M14 Rules cost (new, judged by hand):** count rules a new player must hold in their head that have no
+  visible effect on screen when they apply. Target: zero.
+
+### Verdict
+The pillars stay (one deck, placement matters, cards with memory, no combat). The representation of memory and
+the goal structure go back to the wild-idea protocol.
+
+## Wild-idea protocol, round 2 (after playtest 1)
+Constraints from the debrief: memory must be *visible and physical* (no invisible queues); tension from
+something you can lose in a legible way, not points; the ruin-and-protect moment is the seed; fewer rules,
+each visible when it applies; a one-move player must not win comfortably.
+
+1. **Selvedge: cloths stain each other where they touch.** Each cloth has a permanent body colour and four
+   edges. Two cloths hung side by side stain each other's *touching edges* with their body colours, covering
+   whatever was there. A cloth remembers who was beside it, on which side, and it shows: the edge *is* the
+   memory. A cloth against the rack's frame keeps that edge untouched, so protecting finished work is
+   spatial and visible ("hang it in the corner so its left edge stays red").
+2. **Pattern book instead of score.** A fixed set of commissions dealt face up at the start (e.g. "a blue cloth
+   with red top and bottom edges"). Complete the book within four seasons or the house fails. Every miss is
+   named and visible; there's no points threshold.
+3. **Sun and shade.** Pegs in the top row fade cloths each season, the bottom row stays damp and spreads dye
+   further. Position over time is the memory, as wear.
+4. **(Absurd) The rack is a loom.** Every hang weaves a thread into one shared tapestry that never clears;
+   next season's cloths are dyed by the tapestry behind the peg they hang on. The table remembers, the cards
+   inherit.
+5. **(Absurd) Cloths gossip.** Each cloth whispers its body colour to its neighbours, who repeat it next
+   season to *their* neighbours. Rumours travel the deck across seasons, and orders want a colour to have
+   reached a particular cloth.
+
+**Prototype: 1 + 2 together as v6**, plus one small rule aimed at the "cramped last hangs": you may **call the
+inspection early**, leaving pegs empty (an empty peg stains nothing, so leaving a gap is a way to protect).
+Why this pair: #1 makes every memory rule a visible, physical cause (touching edges stain; new dye covers old;
+the frame protects), with zero bookkeeping. #2 replaces score attack with a book you can fail in a named way.
+Planning across seasons becomes something a person can *see*: "this cloth already has red on top, so next
+season it goes in a top corner." #3 adds rules without adding a decision; #4 and #5 are kept as fallbacks.
+
+Risk check, the familiar-genre test: edge-coloured squares on a grid read like tile-laying (Carcassonne,
+dominoes). The difference is that edges are not printed: they're *written by neighbours* and carried into
+the next season. If the playtest description comes back as "a tile-matching game", that risk has landed.
+
+Engineering: v6 is a different card model, so instead of more flags on the v5 engine the bots and sim become
+generic over a `GameAdapter`, and v6 lives in its own engine module. v1–v5 stay runnable for comparison.
+
+### Iteration 6 — v6 "Selvedge": edges stained by neighbours + pattern book
+**Hypothesis:** if memory is *where a cloth was touched and by whom*, drawn on the cloth itself, and the goal
+is a named checklist instead of a score, then (a) memory stays decision-relevant for the Planner, (b) a
+human-like one-move heuristic does *better* than Greedy (because "get closer to the commission" is now a
+sound heuristic), and (c) a plain Greedy player can't win.
+**Change:** new engine (`src/selvedge/`), new rules (`rules/RULES_v6.md`). Bots and sim made generic over a
+`GameAdapter` (v1–v5 results reproduce exactly after the refactor: v5 Random/Greedy 23.55/35.35 before and after).
+
+Difficulty probe (21 Planner games each) to set the book:
+| Book (fixed edges) | Seasons | Greedy done/win | Proxy done/win | Planner done/win |
+|---|---|---|---|---|
+| 6: [2,2,3,3,4,4] | 4 | 4.19 / 6 % | 4.82 / 22 % | 6.00 / 100 % |
+| 8: [2,2,3,3,3,4,4,4] | 4 | 5.13 / 1 % | 5.88 / 6 % | 8.00 / 100 % |
+| 6: [2,2,3,3,4,4] | 3 | 3.46 / 1 % | 4.07 / 6 % | 6.00 / 100 % |
+| 6: [3,3,3,4,4,4] | 4 | 3.30 / 1 % | 4.24 / 10 % | 5.95 / 95 % |
+| **8: [2,2,3,3,3,4,4,4]** | **3** | **4.15 / 0 %** | **4.90 / 0 %** | **7.71 / 71 %** |
+
+**Full v6** (2000 cheap-bot games, 100 Planner; `sims/v6.log`), score = commissions filled of 8:
+
+| Metric | Target | v5 | v6 |
+|---|---|---|---|
+| Random / Greedy / Proxy / Planner | — | (points) | 1.2 / 4.1 / 4.9 / 7.7 |
+| M1 Planner win | 50–85 % | — | 71 % ✅ |
+| M2 headroom (×4 budget) | ≥ 0.2 SD | −0.03 | 0.35 (85 % wins) ✅ |
+| M13 Greedy win | ≤ 15 % | ~25 % | 0.1 % ✅ |
+| Proxy over Greedy | > 0 | −0.91 SD | **+0.70 SD** ✅ |
+| M4 trivial | ≤ 15 % | 3 % | 11 % ✅ |
+| M5 memory-blind drop | ≥ 0.5 SD | 5.99 | 2.34 (wins 71 → 6 %) ✅ |
+| M6 no-carry rules delta | ≥ 0.5 SD | 8.53 | 2.32 (wins 71 → 8 %) ✅ |
+| M7 random placement drop | ≥ 0.75 SD | 5.52 | 10.18 ✅ |
+| M8 top strategy / entropy | ≤ 50 % / ≥ 0.6 | 69 % / 0.53 | 72 % fresh / 0.86 ⚠️ |
+| M9 AUC @50 / @75 | ≤ .80 / .92 | .39 / .52 | .57 / .70 ✅ |
+| M10 variety | ≥ 0.5 | 0.80 | 0.99 ✅ (books are random per seed) |
+| M11 decisions | 35–60 | 38.7 | 35.2 ✅ |
+| M12 visible changes / hang | 1–3 | 0.47 | 1.23 ✅ |
+| M14 invisible rules | 0 | 3 (FIFO, hem insert, soak-once) | 0 ✅ |
+
+Verdict: **keep; take it to playtest 2.** Every hypothesis held. The most important line is "Proxy over
+Greedy +0.70": for the first time the natural human heuristic is *better* than the mindless one, so the
+game rewards how people actually think. Memory still matters a lot (losing it costs most wins) while being
+drawn on the cloth.
+
+Open worries, for the brief:
+- A proxy-level player wins 0.4 % of books. First games will probably end unfinished. Whether that reads as
+  "near miss, again" or "unfair" is a human question.
+- M8: 72 % of filled commissions are "fresh" (made in one season). Carrying stains is the minority route,
+  though it's what separates wins from losses (no-carry ablation costs most wins).
+- M3 stays demoted (78 % "close"); it was wrong last time.
+
+### "One sentence"
+**"Every cloth wears the colours of whoever hung beside it — and keeps them."** The test for playtest 2 is
+whether the player's own description mentions the edges remembering, or calls it tile-matching.
+
+## Playtest gate 2 (v6)
+UI rebuilt around the debrief: cloths drawn as frames (centre = colour, sides = stains); dashed sides mean
+"any" (never a pale fill); rules are a normal scrolling page with 17px text (reflows and zooms on mobile)
+and four rules, each with a visible effect; preview ticks show exactly which edges a hang will stain;
+"Inspect now" in place of the cramped end-of-season; the end screen lists the unfilled commissions. Names,
+kin and order withdrawal are gone. Logs use a new storage key (`selvedge.logs.v6`) and record early inspections.
+**Stopped here for the human playtester.**
