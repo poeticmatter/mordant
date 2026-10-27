@@ -1,0 +1,84 @@
+{
+  "rules": "v1",
+  "target": 20,
+  "budget": 400,
+  "scores": {
+    "random": {
+      "games": 2000,
+      "mean": 13.7505,
+      "sd": 4.527941005578589,
+      "winRate": 0.106
+    },
+    "greedy": {
+      "games": 2000,
+      "mean": 19.16,
+      "sd": 4.941396563725712,
+      "winRate": 0.486
+    },
+    "planner": {
+      "games": 140,
+      "mean": 29.885714285714286,
+      "sd": 2.5159085671715786,
+      "winRate": 0.9928571428571429
+    },
+    "plannerX4": {
+      "games": 47,
+      "mean": 30.46808510638298,
+      "sd": 1.7363579372853752,
+      "winRate": 1
+    }
+  },
+  "gradient": {
+    "greedyOverRandomSd": 1.094730999675393,
+    "plannerOverGreedySd": 4.247258594825377,
+    "headroomSd": 0.23679106968533875
+  },
+  "density": {
+    "closeShare": 0.8644247787610619,
+    "trivialShare": 0.025577703298641737,
+    "delta": 0.6289771417928947
+  },
+  "ablations": {
+    "memoryBlindDropSd": 3.588592823435345,
+    "randomPlacementDropSd": 4.8264302213924735,
+    "noCarryRulesDeltaSd": 0.47980394553842903,
+    "memoryBlind": {
+      "games": 140,
+      "mean": 20.857142857142858,
+      "sd": 3.8942658001796664,
+      "winRate": 0.6357142857142857
+    },
+    "randomPlacement": {
+      "games": 140,
+      "mean": 17.742857142857144,
+      "sd": 3.899398174391656,
+      "winRate": 0.35714285714285715
+    },
+    "noCarryRules": {
+      "games": 140,
+      "mean": 28.678571428571427,
+      "sd": 2.8139140436228605,
+      "winRate": 1
+    }
+  },
+  "diversity": {
+    "labelShares": {
+      "deep": 0.381294964028777,
+      "secondaries": 0.6187050359712231
+    },
+    "topShare": 0.6187050359712231,
+    "normalizedEntropy": 0.4794757414112861
+  },
+  "tension": {
+    "aucAtHalf": 0.9028776978417267,
+    "aucAtThreeQuarters": 0.960431654676259
+  },
+  "variety": 0.3913774454368865,
+  "pacing": {
+    "meanDecisions": 40.49285714285714,
+    "coefficientOfVariation": 0.022958178437334026,
+    "meanDistinctChoices": 18.07126477332863,
+    "meanShadeChanges": 0.7297583348033163,
+    "meanMemoryChanges": 1.2356676662550714
+  }
+}

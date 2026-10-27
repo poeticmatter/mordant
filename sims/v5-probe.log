@@ -1,0 +1,83 @@
+
+> solo-deck@0.1.0 sim
+> node scripts/sim.mjs --rules v5 --games 1000 --planner-games 14 --budget 400 --skip-ablations --skip-headroom
+
+Ruleset v5 (target 20)
+  Random                     1000 games in 4.4s
+  Greedy                     1000 games in 7.1s
+  Human-proxy                1000 games in 8.8s
+  Human-proxy reads order    1000 games in 9.5s
+  Planner                    14 games in 82.1s
+{
+  "rules": "v5",
+  "target": 20,
+  "budget": 400,
+  "scores": {
+    "random": {
+      "games": 1000,
+      "mean": 23.55,
+      "sd": 6.949,
+      "winRate": 0.729
+    },
+    "greedy": {
+      "games": 1000,
+      "mean": 35.35,
+      "sd": 7.066,
+      "winRate": 0.987
+    },
+    "humanProxy": {
+      "games": 1000,
+      "mean": 28.68,
+      "sd": 6.704,
+      "winRate": 0.913
+    },
+    "orderReadingProxy": {
+      "games": 1000,
+      "mean": 32.012,
+      "sd": 6.396,
+      "winRate": 0.975
+    },
+    "planner": {
+      "games": 14,
+      "mean": 51.429,
+      "sd": 3.736,
+      "winRate": 1
+    },
+    "plannerX4": null
+  },
+  "gradient": {
+    "greedyOverRandomSd": 1.67,
+    "humanProxyOverGreedySd": -0.944,
+    "orderReadingProxyOverGreedySd": -0.472,
+    "plannerOverHumanProxySd": 7.38,
+    "plannerOverGreedySd": 4.779,
+    "headroomSd": null
+  },
+  "density": {
+    "closeShare": 0.798,
+    "trivialShare": 0.025,
+    "delta": 0.934
+  },
+  "ablations": null,
+  "diversity": {
+    "labelShares": {
+      "sequence": 0.571,
+      "bolt": 0.429
+    },
+    "topShare": 0.571,
+    "normalizedEntropy": 0.493
+  },
+  "tension": {
+    "calibratedTarget": 50,
+    "aucAtHalf": 0.258,
+    "aucAtThreeQuarters": 0.424
+  },
+  "variety": 0.805,
+  "pacing": {
+    "meanDecisions": 39.357,
+    "coefficientOfVariation": 0.077,
+    "meanDistinctChoices": 17.76,
+    "meanShadeChanges": 0.468,
+    "meanMemoryChanges": 0.779
+  }
+}

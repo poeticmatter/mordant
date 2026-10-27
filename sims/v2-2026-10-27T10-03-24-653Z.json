@@ -1,0 +1,99 @@
+{
+  "rules": "v2",
+  "target": 20,
+  "budget": 400,
+  "scores": {
+    "random": {
+      "games": 2000,
+      "mean": 13.087,
+      "sd": 6.170934370093364,
+      "winRate": 0.175
+    },
+    "greedy": {
+      "games": 2000,
+      "mean": 19.432,
+      "sd": 7.447508039606255,
+      "winRate": 0.52
+    },
+    "humanProxy": {
+      "games": 2000,
+      "mean": 16.821,
+      "sd": 6.761653569948758,
+      "winRate": 0.3715
+    },
+    "orderReadingProxy": {
+      "games": 2000,
+      "mean": 18.991,
+      "sd": 7.235186175904518,
+      "winRate": 0.49
+    },
+    "planner": {
+      "games": 140,
+      "mean": 46.4,
+      "sd": 4.237249781908748,
+      "winRate": 1
+    },
+    "plannerX4": {
+      "games": 47,
+      "mean": 46.723404255319146,
+      "sd": 3.987758543126673,
+      "winRate": 1
+    }
+  },
+  "gradient": {
+    "greedyOverRandomSd": 0.8519628265262611,
+    "humanProxyOverGreedySd": -0.3505870669913421,
+    "orderReadingProxyOverGreedySd": -0.05921443758834993,
+    "plannerOverHumanProxySd": 7.144121807658042,
+    "plannerOverGreedySd": 6.328228708340796,
+    "headroomSd": 0.030127932276528827
+  },
+  "density": {
+    "closeShare": 0.8066528066528067,
+    "trivialShare": 0.01673567977915804,
+    "delta": 1.059312445477187
+  },
+  "ablations": {
+    "memoryBlindDropSd": 4.65261354156116,
+    "randomPlacementDropSd": 5.515707068111636,
+    "noCarryRulesDeltaSd": 0.44840405871567673,
+    "memoryBlind": {
+      "games": 140,
+      "mean": 26.685714285714287,
+      "sd": 6.177245935442331,
+      "winRate": 0.8928571428571429
+    },
+    "randomPlacement": {
+      "games": 140,
+      "mean": 23.02857142857143,
+      "sd": 5.959317862621114,
+      "winRate": 0.7214285714285714
+    },
+    "noCarryRules": {
+      "games": 140,
+      "mean": 44.5,
+      "sd": 3.5142566781611158,
+      "winRate": 1
+    }
+  },
+  "diversity": {
+    "labelShares": {
+      "sequence": 0.9785714285714285,
+      "partial": 0.02142857142857143
+    },
+    "topShare": 0.9785714285714285,
+    "normalizedEntropy": 0.09425342192649301
+  },
+  "tension": {
+    "aucAtHalf": null,
+    "aucAtThreeQuarters": null
+  },
+  "variety": 0.7618491724571956,
+  "pacing": {
+    "meanDecisions": 41.4,
+    "coefficientOfVariation": 0.03806059075949084,
+    "meanDistinctChoices": 18.091097308488614,
+    "meanShadeChanges": 0.7567287784679089,
+    "meanMemoryChanges": 1.268288474810214
+  }
+}

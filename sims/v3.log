@@ -1,0 +1,112 @@
+
+> solo-deck@0.1.0 sim
+> node scripts/sim.mjs --rules v3 --games 2000 --planner-games 100 --budget 400
+
+Ruleset v3 (target 20)
+  Random                     2000 games in 2.8s
+  Greedy                     2000 games in 4.0s
+  Human-proxy                2000 games in 6.8s
+  Human-proxy reads order    2000 games in 7.3s
+  Planner                    100 games in 164.1s
+  Planner x4                 34 games in 231.6s
+  Planner memory-blind       100 games in 170.2s
+  Planner random-placement   100 games in 166.0s
+  Planner, no-carry rules    100 games in 105.1s
+{
+  "rules": "v3",
+  "target": 20,
+  "budget": 400,
+  "scores": {
+    "random": {
+      "games": 2000,
+      "mean": 26.395,
+      "sd": 7.569,
+      "winRate": 0.835
+    },
+    "greedy": {
+      "games": 2000,
+      "mean": 36.036,
+      "sd": 8.148,
+      "winRate": 0.976
+    },
+    "humanProxy": {
+      "games": 2000,
+      "mean": 31.133,
+      "sd": 7.6,
+      "winRate": 0.938
+    },
+    "orderReadingProxy": {
+      "games": 2000,
+      "mean": 34.892,
+      "sd": 8.232,
+      "winRate": 0.963
+    },
+    "planner": {
+      "games": 100,
+      "mean": 55.98,
+      "sd": 3.873,
+      "winRate": 1
+    },
+    "plannerX4": {
+      "games": 34,
+      "mean": 55.706,
+      "sd": 2.834,
+      "winRate": 1
+    }
+  },
+  "gradient": {
+    "greedyOverRandomSd": 1.183,
+    "humanProxyOverGreedySd": -0.602,
+    "orderReadingProxyOverGreedySd": -0.14,
+    "plannerOverHumanProxySd": 6.207,
+    "plannerOverGreedySd": 5.283,
+    "headroomSd": 0.03
+  },
+  "density": {
+    "closeShare": 0.733,
+    "trivialShare": 0.026,
+    "delta": 0.968
+  },
+  "ablations": {
+    "memoryBlindDropSd": 4.08,
+    "randomPlacementDropSd": 5.19,
+    "noCarryRulesDeltaSd": 0.899,
+    "memoryBlind": {
+      "games": 100,
+      "mean": 40.18,
+      "sd": 5.994,
+      "winRate": 1
+    },
+    "randomPlacement": {
+      "games": 100,
+      "mean": 35.88,
+      "sd": 6.247,
+      "winRate": 1
+    },
+    "noCarryRules": {
+      "games": 100,
+      "mean": 52.5,
+      "sd": 3.279,
+      "winRate": 1
+    }
+  },
+  "diversity": {
+    "labelShares": {
+      "sequence": 1
+    },
+    "topShare": 1,
+    "normalizedEntropy": 0
+  },
+  "tension": {
+    "aucAtHalf": null,
+    "aucAtThreeQuarters": null
+  },
+  "variety": 0.714,
+  "pacing": {
+    "meanDecisions": 33.47,
+    "coefficientOfVariation": 0.064,
+    "meanDistinctChoices": 17.514,
+    "meanShadeChanges": 0.768,
+    "meanMemoryChanges": 1.239
+  }
+}

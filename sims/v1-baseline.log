@@ -1,0 +1,96 @@
+
+> solo-deck@0.1.0 sim
+> node scripts/sim.mjs --rules v1 --games 2000 --planner-games 140 --budget 400
+
+Ruleset v1 (target 20)
+  Random                     2000 games in 3.5s
+  Greedy                     2000 games in 5.4s
+  Planner                    200 games in 1195.3s
+  Planner x4                 67 games in 1740.8s
+  Planner memory-blind       200 games in 1168.1s
+  Planner random-placement   200 games in 1212.0s
+  Planner, no-carry rules    200 games in 1173.5s
+{
+  "rules": "v1",
+  "target": 20,
+  "budget": 400,
+  "scores": {
+    "random": {
+      "games": 2000,
+      "mean": 13.753,
+      "sd": 4.528,
+      "winRate": 0.106
+    },
+    "greedy": {
+      "games": 2000,
+      "mean": 19.155,
+      "sd": 4.94,
+      "winRate": 0.486
+    },
+    "planner": {
+      "games": 200,
+      "mean": 30.06,
+      "sd": 2.414,
+      "winRate": 0.995
+    },
+    "plannerX4": {
+      "games": 67,
+      "mean": 30.403,
+      "sd": 2.35,
+      "winRate": 1
+    }
+  },
+  "gradient": {
+    "greedyOverRandomSd": 1.094,
+    "plannerOverGreedySd": 4.416,
+    "headroomSd": 0.204
+  },
+  "density": {
+    "closeShare": 0.845,
+    "trivialShare": 0.025,
+    "delta": 0.603
+  },
+  "ablations": {
+    "memoryBlindDropSd": 3.985,
+    "randomPlacementDropSd": 5.154,
+    "noCarryRulesDeltaSd": 0.626,
+    "memoryBlind": {
+      "games": 200,
+      "mean": 20.44,
+      "sd": 4.31,
+      "winRate": 0.595
+    },
+    "randomPlacement": {
+      "games": 200,
+      "mean": 17.62,
+      "sd": 3.986,
+      "winRate": 0.315
+    },
+    "noCarryRules": {
+      "games": 200,
+      "mean": 28.55,
+      "sd": 2.918,
+      "winRate": 1
+    }
+  },
+  "diversity": {
+    "labelShares": {
+      "deep": 0.402,
+      "secondaries": 0.598
+    },
+    "topShare": 0.598,
+    "normalizedEntropy": 0.486
+  },
+  "tension": {
+    "aucAtHalf": 0.91,
+    "aucAtThreeQuarters": 0.935
+  },
+  "variety": 0.392,
+  "pacing": {
+    "meanDecisions": 40.435,
+    "coefficientOfVariation": 0.022,
+    "meanDistinctChoices": 18.064,
+    "meanShadeChanges": 0.729,
+    "meanMemoryChanges": 1.233
+  }
+}

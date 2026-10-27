@@ -1,0 +1,100 @@
+{
+  "rules": "v4",
+  "target": 20,
+  "budget": 400,
+  "scores": {
+    "random": {
+      "games": 2000,
+      "mean": 23.45,
+      "sd": 6.332890335383969,
+      "winRate": 0.7575
+    },
+    "greedy": {
+      "games": 2000,
+      "mean": 34.464,
+      "sd": 6.675380438596695,
+      "winRate": 0.9805
+    },
+    "humanProxy": {
+      "games": 2000,
+      "mean": 29.147,
+      "sd": 6.246150094258047,
+      "winRate": 0.9425
+    },
+    "orderReadingProxy": {
+      "games": 2000,
+      "mean": 34.878,
+      "sd": 6.2010576517236125,
+      "winRate": 0.992
+    },
+    "planner": {
+      "games": 100,
+      "mean": 50.74,
+      "sd": 3.6732002395731174,
+      "winRate": 1
+    },
+    "plannerX4": {
+      "games": 34,
+      "mean": 52.1764705882353,
+      "sd": 4.040024666751242,
+      "winRate": 1
+    }
+  },
+  "gradient": {
+    "greedyOverRandomSd": 1.6499434154071035,
+    "humanProxyOverGreedySd": -0.7965089104521128,
+    "orderReadingProxyOverGreedySd": 0.06201893716892531,
+    "plannerOverHumanProxySd": 5.760644293777767,
+    "plannerOverGreedySd": 4.448437039713077,
+    "headroomSd": 0.352313395038116
+  },
+  "density": {
+    "closeShare": 0.8346298619824342,
+    "trivialShare": 0.03680676448644616,
+    "delta": 0.9183000598932793
+  },
+  "ablations": {
+    "memoryBlindDropSd": 5.531960871907571,
+    "randomPlacementDropSd": 5.646302582842669,
+    "noCarryRulesDeltaSd": 8.98399157347194,
+    "memoryBlind": {
+      "games": 100,
+      "mean": 30.42,
+      "sd": 6.205126912481323,
+      "winRate": 0.97
+    },
+    "randomPlacement": {
+      "games": 100,
+      "mean": 30,
+      "sd": 5.706137047074843,
+      "winRate": 0.98
+    },
+    "noCarryRules": {
+      "games": 100,
+      "mean": 17.74,
+      "sd": 4.182391660282428,
+      "winRate": 0.37
+    }
+  },
+  "diversity": {
+    "labelShares": {
+      "sequence": 0.93,
+      "partial": 0.07
+    },
+    "topShare": 0.93,
+    "normalizedEntropy": 0.23087211888844583
+  },
+  "tension": {
+    "calibratedTarget": 50,
+    "aucAtHalf": 0.5009045680687472,
+    "aucAtThreeQuarters": 0.6022161917684306
+  },
+  "variety": 0.7042678805242736,
+  "pacing": {
+    "meanDecisions": 40.21,
+    "coefficientOfVariation": 0.06867702595949246,
+    "meanDistinctChoices": 17.81994528724198,
+    "meanShadeChanges": 0.49017657299179307,
+    "meanMemoryChanges": 0.7883611042029346
+  }
+}

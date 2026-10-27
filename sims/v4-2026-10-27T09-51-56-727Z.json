@@ -1,0 +1,72 @@
+{
+  "rules": "v4",
+  "target": 20,
+  "budget": 400,
+  "scores": {
+    "random": {
+      "games": 1000,
+      "mean": 23.352,
+      "sd": 6.331831962394453,
+      "winRate": 0.746
+    },
+    "greedy": {
+      "games": 1000,
+      "mean": 34.58,
+      "sd": 6.594512870561415,
+      "winRate": 0.986
+    },
+    "humanProxy": {
+      "games": 1000,
+      "mean": 29.152,
+      "sd": 6.252111323385095,
+      "winRate": 0.944
+    },
+    "orderReadingProxy": {
+      "games": 1000,
+      "mean": 34.834,
+      "sd": 6.198422702591371,
+      "winRate": 0.991
+    },
+    "planner": {
+      "games": 14,
+      "mean": 50.57142857142857,
+      "sd": 4.030495994190252,
+      "winRate": 1
+    },
+    "plannerX4": null
+  },
+  "gradient": {
+    "greedyOverRandomSd": 1.7026276573244625,
+    "humanProxyOverGreedySd": -0.8231085610934431,
+    "orderReadingProxyOverGreedySd": 0.03851687076597986,
+    "plannerOverHumanProxySd": 5.458385278564187,
+    "plannerOverGreedySd": 4.2178431697995995,
+    "headroomSd": null
+  },
+  "density": {
+    "closeShare": 0.8568904593639576,
+    "trivialShare": 0.03496503496503497,
+    "delta": 1.007623998547563
+  },
+  "ablations": null,
+  "diversity": {
+    "labelShares": {
+      "sequence": 0.8571428571428571,
+      "partial": 0.14285714285714285
+    },
+    "topShare": 0.8571428571428571,
+    "normalizedEntropy": 0.37330396038588737
+  },
+  "tension": {
+    "aucAtHalf": null,
+    "aucAtThreeQuarters": null
+  },
+  "variety": 0.7092774308572454,
+  "pacing": {
+    "meanDecisions": 40.857142857142854,
+    "coefficientOfVariation": 0.05382798712706523,
+    "meanDistinctChoices": 17.615384615384617,
+    "meanShadeChanges": 0.479020979020979,
+    "meanMemoryChanges": 0.7762237762237763
+  }
+}

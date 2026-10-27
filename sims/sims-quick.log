@@ -1,0 +1,61 @@
+Ruleset v1 (target 20)
+  Random                     200 games in 0.7s
+  Greedy                     200 games in 0.8s
+  Planner                    16 games in 16.4s
+{
+  "rules": "v1",
+  "target": 20,
+  "budget": 200,
+  "scores": {
+    "random": {
+      "games": 200,
+      "mean": 14.28,
+      "sd": 4.167,
+      "winRate": 0.12
+    },
+    "greedy": {
+      "games": 200,
+      "mean": 19.315,
+      "sd": 4.777,
+      "winRate": 0.49
+    },
+    "planner": {
+      "games": 16,
+      "mean": 30.125,
+      "sd": 2.058,
+      "winRate": 1
+    },
+    "plannerX4": null
+  },
+  "gradient": {
+    "greedyOverRandomSd": 1.054,
+    "plannerOverGreedySd": 5.012,
+    "headroomSd": null
+  },
+  "density": {
+    "closeShare": 0.684,
+    "trivialShare": 0.017,
+    "delta": 0.514
+  },
+  "ablations": null,
+  "diversity": {
+    "labelShares": {
+      "deep": 0.438,
+      "secondaries": 0.563
+    },
+    "topShare": 0.563,
+    "normalizedEntropy": 0.494
+  },
+  "tension": {
+    "aucAtHalf": null,
+    "aucAtThreeQuarters": null
+  },
+  "variety": 0.399,
+  "pacing": {
+    "meanDecisions": 41,
+    "coefficientOfVariation": 0.03,
+    "meanDistinctChoices": 17.982,
+    "meanShadeChanges": 0.715,
+    "meanMemoryChanges": 1.261
+  }
+}

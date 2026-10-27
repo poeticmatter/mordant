@@ -1,0 +1,101 @@
+{
+  "rules": "v5",
+  "target": 20,
+  "budget": 400,
+  "scores": {
+    "random": {
+      "games": 2000,
+      "mean": 23.543,
+      "sd": 6.962840727748965,
+      "winRate": 0.7335
+    },
+    "greedy": {
+      "games": 2000,
+      "mean": 35.164,
+      "sd": 7.193963024647836,
+      "winRate": 0.986
+    },
+    "humanProxy": {
+      "games": 2000,
+      "mean": 28.59,
+      "sd": 6.942614781190225,
+      "winRate": 0.908
+    },
+    "orderReadingProxy": {
+      "games": 2000,
+      "mean": 31.81,
+      "sd": 6.5875564513710385,
+      "winRate": 0.972
+    },
+    "planner": {
+      "games": 100,
+      "mean": 51.06,
+      "sd": 3.5603932367085496,
+      "winRate": 1
+    },
+    "plannerX4": {
+      "games": 34,
+      "mean": 51.529411764705884,
+      "sd": 2.7033235983708366,
+      "winRate": 1
+    }
+  },
+  "gradient": {
+    "greedyOverRandomSd": 1.615382225372069,
+    "humanProxyOverGreedySd": -0.9138217665946117,
+    "orderReadingProxyOverGreedySd": -0.46622424781842553,
+    "plannerOverHumanProxySd": 6.488047376855229,
+    "plannerOverGreedySd": 4.437712058628253,
+    "headroomSd": -0.03304327668375454
+  },
+  "density": {
+    "closeShare": 0.7896103896103897,
+    "trivialShare": 0.03335056876938987,
+    "delta": 0.8900983091771374
+  },
+  "ablations": {
+    "memoryBlindDropSd": 5.99371995766626,
+    "randomPlacementDropSd": 5.516244609586003,
+    "noCarryRulesDeltaSd": 8.532765338045968,
+    "memoryBlind": {
+      "games": 100,
+      "mean": 29.72,
+      "sd": 5.803585098885,
+      "winRate": 0.97
+    },
+    "randomPlacement": {
+      "games": 100,
+      "mean": 31.42,
+      "sd": 6.550083968927421,
+      "winRate": 0.97
+    },
+    "noCarryRules": {
+      "games": 100,
+      "mean": 20.68,
+      "sd": 6.223953727334417,
+      "winRate": 0.58
+    }
+  },
+  "diversity": {
+    "labelShares": {
+      "sequence": 0.69,
+      "bolt": 0.27,
+      "partial": 0.04
+    },
+    "topShare": 0.69,
+    "normalizedEntropy": 0.5325773445068258
+  },
+  "tension": {
+    "calibratedTarget": 50,
+    "aucAtHalf": 0.39167935058346015,
+    "aucAtThreeQuarters": 0.5149670218163369
+  },
+  "variety": 0.7964617206363628,
+  "pacing": {
+    "meanDecisions": 38.68,
+    "coefficientOfVariation": 0.06955219224305811,
+    "meanDistinctChoices": 17.76421923474664,
+    "meanShadeChanges": 0.46845915201654603,
+    "meanMemoryChanges": 0.7737849017580145
+  }
+}
