@@ -3,8 +3,8 @@ import type { WorkshopState } from '../engine.ts';
 import { ROTATION_STEP_DEGREES, type Placement } from '../geometry.ts';
 import { ClothArt } from './Swatch.tsx';
 
-/** Room around the bench so a turned cloth near the edge is still fully visible (half a diagonal of 12). */
-const MARGIN = 9;
+/** Room around the bench, so a cloth near its edge mostly stays in view without shrinking the bench on a phone. */
+const MARGIN = 4;
 /** Pointer travel, in bench units, below which a press counts as a tap rather than a drag. */
 const TAP_SLOP = 0.4;
 
@@ -75,7 +75,7 @@ export function Bench({ game, layout, selectedClothId, onSelect, onMove }: Bench
     <svg
       ref={svgRef}
       viewBox={`${-MARGIN} ${-MARGIN} ${benchSize + 2 * MARGIN} ${benchSize + 2 * MARGIN}`}
-      className="block aspect-square w-full touch-none select-none"
+      className="block h-full w-full touch-none select-none"
       role="group"
       aria-label="Workshop bench"
       onPointerDown={() => onSelect(null)}

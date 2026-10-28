@@ -12,8 +12,8 @@ export function WorkshopRules({ config, par, onClose }: { config: WorkshopConfig
 
       <h3 className="mt-6 text-xl font-semibold">The bench</h3>
       <ul className="mt-1 list-disc space-y-1 pl-6">
-        <li>Tap a cloth to pick it up: it goes on top, in the middle of the bench.</li>
-        <li>Drag to move it, turn it in 15° steps, put it on top, or take it off the bench.</li>
+        <li>Tap a cloth's card to pick it up: it goes on top, in the middle of the bench. Cards with a gold edge are on the bench.</li>
+        <li>Drag it to move it. The buttons under the bench turn it 15°, put it on top, or take it off the bench.</li>
         <li>A cloth lying on another keeps the dye off it, exactly to its edge.</li>
       </ul>
 
@@ -25,9 +25,10 @@ export function WorkshopRules({ config, par, onClose }: { config: WorkshopConfig
 
       <h3 className="mt-6 text-xl font-semibold">What a cloth must include</h3>
       <p className="mt-1">
-        Each cloth's card shows it now, and beside it the regions it must include: halves, corners, stripes, the centre,
-        in a colour (bare cloth counts as a colour). Hatched parts can be anything. The picture may be turned or flipped
-        any way. A region counts once {Math.round(config.metThreshold * 100)}% of it is the right colour.
+        Each card shows the cloth as it is now (left) and the regions it must include (right): halves, corners,
+        stripes, the centre, in a colour (bare cloth counts as a colour). Hatched parts can be anything. The picture may be
+        turned or flipped any way. A region counts once {Math.round(config.metThreshold * 100)}% of it is the right colour;
+        the card shows how close the cloth is.
       </p>
 
       <h3 className="mt-6 text-xl font-semibold">Score</h3>

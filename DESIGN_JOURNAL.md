@@ -1028,3 +1028,18 @@ same cloth back on later rounds is a draw (4 of 6 per round), which is where pla
 **Not measured:** whether par is ever beatable in practice. Objectives use all three dyes, so 3 is a
 hard floor. What I can't tell is whether some puzzles are much easier than others at par. That's the
 playtest question.
+
+**v12 follow-up (playtester, two phone screenshots).**
+- "Can I not put a cloth from the workbench back? That is a wonderful constraint, but a bit unintuitive."
+  You could, but the button only appeared under the bench after selecting a cloth, below the fold. Noted
+  as a possible variant rule ("once sprayed, a cloth stays on the bench"), not built.
+- "I should be able to see everything without scrolling on mobile."
+
+Layout changes, no rule changes:
+- The puzzle screen is now one viewport (`h-dvh`): a compact header, the four cloth cards in a single
+  row, the bench filling the remaining height, one row of placement buttons, one spray row.
+- The placement buttons are always shown, disabled until a bench cloth is selected, so the screen never
+  jumps. **Off the bench** is always visible.
+- Cards on the bench get a gold edge.
+- The solved message is a bottom sheet rather than a block that pushes the bench down.
+- The card legend moved to the rules page.
