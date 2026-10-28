@@ -65,13 +65,12 @@ export function App() {
           seed={game.seed}
           exportText={formatLogForExport(session.logs, tagsMoveCodec)}
           finishedCount={session.logs.filter((log) => log.finalScore !== null).length}
-          deckLabel="Your cloths"
+          deckShortcut={{ label: 'Your cloths', onOpen: () => open('cloths') }}
           onNewGame={(seed) => {
             session.newGame(seed);
             setView('game');
           }}
           onOpenRules={() => open('rules')}
-          onOpenDeck={() => open('cloths')}
           onClose={() => setView('game')}
         />
       )}

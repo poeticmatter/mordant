@@ -1,17 +1,16 @@
 import type { WorkshopConfig } from './engine.ts';
 
 /**
- * v11 (playtest feedback on v10): dyes cover instead of mixing, and the quilt is replaced by four random
- * commissions for patterned sheets. v9 (quilt, thread grid) and v10 (quilt, exact shapes, mixing) are in
- * git history. Numbers are first guesses, not tuned.
+ * v12 (the playtester's puzzle direction): four cloths, one objective each, par from a generated game
+ * of one spray per dye. v9–v11 (quilt, then commissions) are in git history.
  */
-export const RULES_V11: WorkshopConfig = {
-  version: 'v11',
-  clothCount: 6,
+export const RULES_V12: WorkshopConfig = {
+  version: 'v12',
+  clothCount: 4,
   clothSize: 12,
   benchSize: 36,
-  handSize: 4,
-  rounds: 8,
-  commissionCount: 4,
-  starThresholds: [0.7, 0.85, 0.95],
+  metThreshold: 0.9,
+  cleanShare: 0.97,
+  featuresPerObjective: 2,
+  plainObjectivesAllowed: 1,
 };

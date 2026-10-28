@@ -2,17 +2,16 @@ import { useState } from 'react';
 import { BLUE, RED, YELLOW, type Dye } from '../../engine/shades.ts';
 import { formatLogForExport } from '../../ui/gameLog.ts';
 import { MenuSheet } from '../../ui/MenuSheet.tsx';
-import { RULES_V11 } from '../config.ts';
-import { openCommissions, totalStars } from '../engine.ts';
+import { RULES_V12 } from '../config.ts';
+import { isClothDone, parName, progressOf, scoreToPar } from '../engine.ts';
 import { Bench } from './Bench.tsx';
-import { ClothsSheet } from './ClothsSheet.tsx';
-import { CommissionBoard, DeliverySheet } from './CommissionBoard.tsx';
+import { ObjectiveIcon } from './ObjectiveIcon.tsx';
 import { Swatch } from './Swatch.tsx';
 import { useWorkshopSession, type WorkshopSession } from './useWorkshopSession.ts';
 import { workshopMoveCodec } from './workshopMoveCodec.ts';
 import { WorkshopRules } from './WorkshopRules.tsx';
 
-type View = 'game' | 'rules' | 'menu' | 'cloths';
+type View = 'game' | 'rules' | 'menu';
 
 const DYE_BUTTONS: { dye: Dye; name: string; className: string }[] = [
   { dye: RED, name: 'Red', className: 'bg-madder text-cloth' },
@@ -21,8 +20,8 @@ const DYE_BUTTONS: { dye: Dye; name: string; className: string }[] = [
 ];
 
 export function WorkshopApp() {
-  const session = useWorkshopSession(RULES_V11);
-  const { game, pendingDelivery } = session;
+  const session = useWorkshopSession(RULES_V12);
+  const { game } = session;
   const [view, setView] = useState<View>(() => (session.logs.at(-1)?.moves.length ? 'game' : 'rules'));
 
   function open(next: View) {
@@ -34,44 +33,30 @@ export function WorkshopApp() {
     <div className="mx-auto flex min-h-dvh max-w-lg flex-col px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-6">
       <header className="mb-3 flex items-center gap-3">
         <h1 className="text-2xl font-extrabold tracking-tight">Selvedge</h1>
-        <p className="flex-1 text-chalk-soft">{game.isOver ? 'Finished' : `Round ${game.round + 1} of ${game.config.rounds}`}</p>
-        <p className="text-right">
-          <span className="text-2xl font-extrabold">{totalStars(game)}</span>
-          <span className="text-chalk-soft"> ★</span>
+        <p className="flex-1 text-chalk-soft">
+          Spray <span className="text-xl font-extrabold text-chalk">{game.strokes}</span>, par {game.puzzle.par}
         </p>
         <button type="button" onClick={() => open('menu')} className="rounded-sm border border-slate-line px-3 py-2">
           Menu
         </button>
       </header>
 
-      {view === 'rules' ? (
-        <WorkshopRules config={game.config} onClose={() => setView('game')} />
-      ) : game.isOver ? (
-        <FinalTally session={session} onMenu={() => open('menu')} />
-      ) : (
-        <Workshop session={session} />
-      )}
+      {view === 'rules' ? <WorkshopRules config={game.config} par={game.puzzle.par} onClose={() => setView('game')} /> : <Workshop session={session} />}
 
       <p className="mt-auto pt-6 text-center text-xs text-chalk-soft">
-        Seed {game.seed}, rules {game.config.version}
+        Puzzle {game.seed}, rules {game.config.version}
       </p>
 
-      {pendingDelivery && (
-        <DeliverySheet game={game} {...pendingDelivery} onConfirm={session.confirmDelivery} onCancel={session.cancelDelivery} />
-      )}
-      {view === 'cloths' && <ClothsSheet game={game} onClose={() => setView('game')} />}
       {view === 'menu' && (
         <MenuSheet
           seed={game.seed}
           exportText={formatLogForExport(session.logs, workshopMoveCodec)}
           finishedCount={session.logs.filter((log) => log.finalScore !== null).length}
-          deckLabel="Your cloths"
           onNewGame={(seed) => {
-            session.newGame(seed);
+            session.newPuzzle(seed);
             setView('game');
           }}
           onOpenRules={() => open('rules')}
-          onOpenDeck={() => open('cloths')}
           onClose={() => setView('game')}
         />
       )}
@@ -81,42 +66,51 @@ export function WorkshopApp() {
 
 function Workshop({ session }: { session: WorkshopSession }) {
   const { game, layout, selectedClothId } = session;
-  const isOnBench = (clothId: number) => layout.some((placement) => placement.clothId === clothId);
-
   return (
     <div className="flex flex-col gap-4">
-      <CommissionBoard game={game} selectedClothId={selectedClothId} onChoose={session.proposeDelivery} />
-      {selectedClothId !== null && openCommissions(game).length > 0 && (
-        <p className="-mt-2 text-xs text-chalk-soft">Each open commission shows how the selected cloth matches it now. Tap one to deliver.</p>
-      )}
-
+      {game.isSolved && <SolvedBanner session={session} />}
+      <ClothCards session={session} />
       <Bench game={game} layout={layout} selectedClothId={selectedClothId} onSelect={session.select} onMove={session.moveTo} />
+      {selectedClothId !== null && session.isOnBench(selectedClothId) && <PlacementControls session={session} clothId={selectedClothId} />}
+      {!game.isSolved && <SprayBar session={session} />}
+    </div>
+  );
+}
 
-      {selectedClothId !== null && isOnBench(selectedClothId) && <PlacementControls session={session} clothId={selectedClothId} />}
-
-      <section aria-label="Drawn this round">
-        <h2 className="font-semibold">
-          Drawn this round <span className="font-normal text-chalk-soft">tap to lay out or select</span>
-        </h2>
-        <ul className="mt-2 grid grid-cols-4 gap-2">
-          {game.bench.map((clothId) => (
-            <li key={clothId}>
+/** Each cloth beside what it must include. Tap to pick it up (it goes on top of the bench). */
+function ClothCards({ session }: { session: WorkshopSession }) {
+  const { game, selectedClothId } = session;
+  return (
+    <section aria-label="Your cloths and what each must include">
+      <ul className="grid grid-cols-2 gap-2">
+        {game.cloths.map((cloth) => {
+          const isDone = isClothDone(game, cloth.id);
+          const isSelected = cloth.id === selectedClothId;
+          return (
+            <li key={cloth.id}>
               <button
                 type="button"
-                onClick={() => (isOnBench(clothId) ? session.select(clothId) : session.layOut(clothId))}
-                aria-pressed={clothId === selectedClothId}
-                className={`w-full rounded-sm p-1.5 ${clothId === selectedClothId ? 'bg-slate-raised outline-2 outline-chalk' : 'bg-slate-deep'}`}
+                onClick={() => session.pickUp(cloth.id)}
+                aria-pressed={isSelected}
+                className={`flex w-full flex-col gap-1 rounded-sm p-2 text-left ${isSelected ? 'bg-slate-raised outline-2 outline-chalk' : 'bg-slate-deep'}`}
               >
-                <Swatch cloth={game.cloths[clothId]} size={game.config.clothSize} label={`Cloth ${clothId + 1}`} />
-                <span className="mt-1 block text-xs text-chalk-soft">{isOnBench(clothId) ? 'on the bench' : 'in hand'}</span>
+                <div className="grid grid-cols-2 gap-1.5">
+                  <Swatch cloth={cloth} size={game.config.clothSize} label={`Cloth ${cloth.id + 1}`} />
+                  <ObjectiveIcon objective={game.puzzle.objectives[cloth.id]} />
+                </div>
+                <p className="flex justify-between text-xs">
+                  <span className="text-chalk-soft">{session.isOnBench(cloth.id) ? 'on the bench' : 'off the bench'}</span>
+                  <span className={isDone ? 'font-semibold text-weld' : 'text-chalk-soft'}>{isDone ? 'Done ✓' : `${Math.round(progressOf(game, cloth.id) * 100)}%`}</span>
+                </p>
               </button>
             </li>
-          ))}
-        </ul>
-      </section>
-
-      <SprayBar session={session} />
-    </div>
+          );
+        })}
+      </ul>
+      <p className="mt-1.5 text-xs text-chalk-soft">
+        Left: the cloth now. Right: what it must include, any way round; hatched means anything. Done at {Math.round(game.config.metThreshold * 100)}%.
+      </p>
+    </section>
   );
 }
 
@@ -140,18 +134,8 @@ function PlacementControls({ session, clothId }: { session: WorkshopSession; clo
 }
 
 function SprayBar({ session }: { session: WorkshopSession }) {
-  const { game, layout } = session;
+  const { layout } = session;
   const [dye, setDye] = useState<Dye | null>(null);
-  if (game.hasSprayed) {
-    return (
-      <div className="flex flex-wrap items-center gap-3">
-        <p className="min-w-40 flex-1 text-chalk-soft">Sprayed. Move cloths apart to see what each got, deliver any that are ready, then end the round.</p>
-        <button type="button" onClick={session.endRound} className="rounded-sm bg-weld px-5 py-3 font-semibold text-slate-deep">
-          End the round
-        </button>
-      </div>
-    );
-  }
   return (
     <div className="flex flex-wrap items-center gap-2">
       {DYE_BUTTONS.map((button) => (
@@ -173,28 +157,28 @@ function SprayBar({ session }: { session: WorkshopSession }) {
       >
         Spray
       </button>
-      <button type="button" onClick={session.endRound} className="ml-auto text-sm text-chalk-soft underline underline-offset-2">
-        Skip spraying
+      <button type="button" onClick={session.startOver} className="ml-auto text-sm text-chalk-soft underline underline-offset-2">
+        Start over
       </button>
     </div>
   );
 }
 
-function FinalTally({ session, onMenu }: { session: WorkshopSession; onMenu: () => void }) {
+function SolvedBanner({ session }: { session: WorkshopSession }) {
   const { game } = session;
-  const maxStars = game.commissions.length * 3;
+  const relative = scoreToPar(game);
   return (
-    <section className="flex flex-col gap-3 py-4">
-      <h2 className="text-4xl font-extrabold">
-        {totalStars(game)} of {maxStars} stars
-      </h2>
-      <CommissionBoard game={game} selectedClothId={null} onChoose={() => {}} />
-      <div className="mt-2 flex gap-2">
-        <button type="button" onClick={onMenu} className="flex-1 rounded-sm bg-weld py-3 font-semibold text-slate-deep">
-          Copy the log
+    <section className="rounded-sm border border-weld p-3">
+      <h2 className="text-3xl font-extrabold">{parName(relative)}</h2>
+      <p className="text-chalk-soft">
+        All four done in {game.strokes} {game.strokes === 1 ? 'spray' : 'sprays'}, par {game.puzzle.par}.
+      </p>
+      <div className="mt-3 flex gap-2">
+        <button type="button" onClick={() => session.newPuzzle()} className="flex-1 rounded-sm bg-weld py-3 font-semibold text-slate-deep">
+          Next puzzle
         </button>
-        <button type="button" onClick={() => session.newGame()} className="flex-1 rounded-sm bg-slate-raised py-3 font-semibold">
-          New game
+        <button type="button" onClick={session.startOver} className="flex-1 rounded-sm bg-slate-raised py-3 font-semibold">
+          Play it again
         </button>
       </div>
     </section>

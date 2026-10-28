@@ -1,46 +1,37 @@
 import { describe, expect, it } from 'vitest';
-import { Random } from '../engine/rng.ts';
-import { BLUE, DYES, RED, YELLOW, type Dye } from '../engine/shades.ts';
-import { BARE, colourAt, readCloth, type Cloth, type Colour } from './cloth.ts';
-import { RULES_V11 } from './config.ts';
-import { applyMove, createGame, IllegalMoveError, openCommissions, totalStars, type WorkshopMove, type WorkshopState } from './engine.ts';
-import { coversFrom, isInsideConvex, squareCorners, toBench, toLocal, type Placement, type Point } from './geometry.ts';
-import { dealObjectives, matchOf, starsFor, type Objective } from './objectives.ts';
+import { BLUE, RED, YELLOW, type Dye } from '../engine/shades.ts';
+import { BARE, blankCloths, colourAt, readCloth, sprayed, type Cloth } from './cloth.ts';
+import { RULES_V12 } from './config.ts';
+import { applyMove, createGame, IllegalMoveError, isClothDone, parName, scoreToPar, type WorkshopState } from './engine.ts';
+import { isObjectiveMet, objectiveProgress, REGIONS, type Objective } from './features.ts';
+import { generatePuzzle } from './generator.ts';
+import { coversFrom, isInsideConvex, squareCorners, toBench, toLocal, type Placement } from './geometry.ts';
 
-const SIZE = RULES_V11.clothSize;
+const SIZE = RULES_V12.clothSize;
 const HALF = SIZE / 2;
+const CENTRE = RULES_V12.benchSize / 2;
 
 function at(clothId: number, x: number, y: number, rotation = 0): Placement {
   return { clothId, x, y, rotation };
-}
-
-function sprayed(state: WorkshopState, dye: Dye, layout: Placement[]): WorkshopState {
-  return applyMove(state, { kind: 'spray', dye, layout });
 }
 
 function round(value: number): number {
   return Math.round(value * 1000) / 1000;
 }
 
-/** A cloth built straight from layers, for judging objectives without playing a game. */
-function clothOf(...layers: { dye: Dye; covers?: Point[][] }[]): Cloth {
-  return {
-    id: 0,
-    layers: layers.map(({ dye, covers = [] }) => ({ dye, covers: covers.map((quad) => [quad[0], quad[1], quad[2], quad[3]] as const) })),
-    deliveredTo: null,
-  };
+/** Cloth 0 after sprays, each over cloth 0 at the centre plus the given covers on top. */
+function clothAfter(...sprays: [Dye, Placement[]][]): Cloth {
+  let cloths = blankCloths(4);
+  for (const [dye, covers] of sprays) cloths = sprayed(cloths, dye, [at(0, CENTRE, CENTRE), ...covers], SIZE);
+  return cloths[0];
 }
 
-/** Covers everything below-right of the cloth's falling diagonal (x + y > 0). */
-const BELOW_DIAGONAL: Point[] = [
-  { x: -SIZE, y: SIZE },
-  { x: SIZE, y: -SIZE },
-  { x: 2 * SIZE, y: 0 },
-  { x: 0, y: 2 * SIZE },
-];
+function objectiveOf(...features: [keyof typeof REGIONS, number][]): Objective {
+  return { features: features.map(([region, colour]) => ({ region, polygon: REGIONS[region].polygon, colour: colour as 0 })) };
+}
 
-function match(objective: Objective, cloth: Cloth): number {
-  return matchOf(objective, readCloth(cloth, SIZE));
+function progress(objective: Objective, cloth: Cloth): number {
+  return objectiveProgress(objective, readCloth(cloth, SIZE));
 }
 
 describe('geometry', () => {
@@ -64,10 +55,6 @@ describe('geometry', () => {
     expect(coversFrom([at(0, 18, 18), at(1, 24, 18)], 1, SIZE)).toEqual([]);
   });
 
-  it('ignores cloths too far away to touch', () => {
-    expect(coversFrom([at(0, 0, 0), at(1, 36, 36)], 0, SIZE)).toEqual([]);
-  });
-
   it('lists the square’s corners clockwise from top-left', () => {
     expect(squareCorners(2)[1]).toEqual({ x: 1, y: -1 });
   });
@@ -75,141 +62,102 @@ describe('geometry', () => {
 
 describe('spraying', () => {
   it('dyes the exposed part of a lower cloth', () => {
-    const start = createGame(1, RULES_V11);
-    const [lower, upper] = start.bench;
-    const after = sprayed(start, RED, [at(lower, 18, 18), at(upper, 24, 18)]);
-    expect(colourAt(after.cloths[lower], SIZE, { x: -5, y: 0 })).toBe(RED);
+    expect(colourAt(clothAfter([RED, [at(1, CENTRE + 6, CENTRE)]]), SIZE, { x: -3, y: 0 })).toBe(RED);
   });
 
   it('leaves the covered part of a lower cloth as it was', () => {
-    const start = createGame(1, RULES_V11);
-    const [lower, upper] = start.bench;
-    const after = sprayed(start, RED, [at(lower, 18, 18), at(upper, 24, 18)]);
-    expect(colourAt(after.cloths[lower], SIZE, { x: 5, y: 0 })).toBe(BARE);
-  });
-
-  it('follows a turned cloth’s diagonal edge', () => {
-    const start = createGame(1, RULES_V11);
-    const [lower, upper] = start.bench;
-    const after = sprayed(start, BLUE, [at(lower, 18, 18), at(upper, 18, 18, 3)]);
-    const cloth = after.cloths[lower];
-    expect([colourAt(cloth, SIZE, { x: -5.9, y: -5.9 }), colourAt(cloth, SIZE, { x: 0, y: -5.9 })]).toEqual([BLUE, BARE]);
+    expect(colourAt(clothAfter([RED, [at(1, CENTRE + 6, CENTRE)]]), SIZE, { x: 3, y: 0 })).toBe(BARE);
   });
 
   it('covers an earlier dye rather than mixing with it', () => {
-    expect(colourAt(clothOf({ dye: RED }, { dye: YELLOW }), SIZE, { x: 0, y: 0 })).toBe(YELLOW);
+    expect(colourAt(clothAfter([RED, []], [YELLOW, []]), SIZE, { x: 0, y: 0 })).toBe(YELLOW);
   });
 
-  it('keeps the earlier dye where the later spray was masked', () => {
-    expect(colourAt(clothOf({ dye: RED }, { dye: YELLOW, covers: [BELOW_DIAGONAL] }), SIZE, { x: 3, y: 3 })).toBe(RED);
-  });
-
-  it('allows one spray per round', () => {
-    const start = createGame(1, RULES_V11);
-    const once = sprayed(start, RED, [at(start.bench[0], 18, 18)]);
-    expect(() => sprayed(once, BLUE, [at(start.bench[0], 18, 18)])).toThrow(IllegalMoveError);
-  });
-
-  it('rejects a cloth laid off the bench', () => {
-    const start = createGame(1, RULES_V11);
-    expect(() => sprayed(start, RED, [at(start.bench[0], RULES_V11.benchSize + 1, 18)])).toThrow(IllegalMoveError);
+  it('leaves cloths off the bench untouched', () => {
+    expect(sprayed(blankCloths(2), BLUE, [at(0, CENTRE, CENTRE)], SIZE)[1].layers).toEqual([]);
   });
 });
 
 describe('objectives', () => {
-  const halfSquare = (first: Colour, second: Colour): Objective => ({ kind: 'pattern', pattern: 'halfSquare', colours: [first, second] });
-
-  it('fully matches a half-square triangle made with a diagonal mask', () => {
-    expect(match(halfSquare(BLUE, BARE), clothOf({ dye: BLUE, covers: [BELOW_DIAGONAL] }))).toBe(1);
+  it('is met by a cloth that includes the region in its colour', () => {
+    const redLeftHalf = clothAfter([RED, [at(1, CENTRE + 6, CENTRE)]]);
+    expect(isObjectiveMet(objectiveOf(['half', RED]), readCloth(redLeftHalf, SIZE), RULES_V12.metThreshold)).toBe(true);
   });
 
-  it('accepts a block turned the other way round', () => {
-    expect(match(halfSquare(BARE, BLUE), clothOf({ dye: BLUE, covers: [BELOW_DIAGONAL] }))).toBe(1);
+  it('accepts the region turned any way round', () => {
+    const redTopHalf = clothAfter([RED, [at(1, CENTRE, CENTRE + 6)]]);
+    expect(progress(objectiveOf(['half', RED]), redTopHalf)).toBe(1);
   });
 
-  it('half matches a half-square triangle on a cloth of one colour', () => {
-    expect(round(match(halfSquare(BLUE, RED), clothOf({ dye: BLUE })))).toBeCloseTo(0.5, 1);
+  it('ignores what the rest of the cloth looks like', () => {
+    const redLeftThenBlueStripe = clothAfter([RED, []], [BLUE, [at(1, CENTRE - 4, CENTRE)]]);
+    expect(progress(objectiveOf(['quarter', RED]), redLeftThenBlueStripe)).toBe(1);
   });
 
-  it('fully matches a four-patch made with two offset masks', () => {
-    const topLeft = squareCorners(SIZE).map((corner) => ({ x: corner.x - HALF, y: corner.y - HALF }));
-    const bottomRight = squareCorners(SIZE).map((corner) => ({ x: corner.x + HALF, y: corner.y + HALF }));
-    const cloth = clothOf({ dye: RED }, { dye: YELLOW, covers: [topLeft, bottomRight] });
-    expect(match({ kind: 'pattern', pattern: 'fourPatch', colours: [RED, YELLOW] }, cloth)).toBe(1);
+  it('needs every feature at once, in their places relative to each other', () => {
+    const redLeftBareRight = clothAfter([RED, [at(1, CENTRE + 6, CENTRE)]]);
+    const redHalfWithBareCornerInIt = objectiveOf(['half', RED], ['corner', BARE]);
+    expect(isObjectiveMet(redHalfWithBareCornerInIt, readCloth(redLeftBareRight, SIZE), RULES_V12.metThreshold)).toBe(false);
   });
 
-  it('measures coverage against the share asked for', () => {
-    expect(match({ kind: 'coverage', colour: BLUE, share: 0.5 }, clothOf({ dye: BLUE, covers: [BELOW_DIAGONAL] }))).toBe(1);
-  });
-
-  it('finds a mirror line on a diagonal split', () => {
-    expect(match({ kind: 'mirror', minimumShare: 0.15 }, clothOf({ dye: BLUE, covers: [BELOW_DIAGONAL] }))).toBe(1);
-  });
-
-  it('gives no mirror credit to a cloth of one colour', () => {
-    expect(match({ kind: 'mirror', minimumShare: 0.15 }, clothOf({ dye: BLUE }))).toBe(0);
-  });
-
-  it('marks down two dyes that touch along a long edge', () => {
-    const touching = clothOf({ dye: RED }, { dye: BLUE, covers: [BELOW_DIAGONAL] });
-    expect(match({ kind: 'apart', first: RED, second: BLUE, minimumShare: 0.2 }, touching)).toBeLessThan(0.1);
-  });
-
-  it('awards stars at the thresholds', () => {
-    expect([0.69, 0.7, 0.9, 0.95].map((value) => starsFor(value, RULES_V11.starThresholds))).toEqual([0, 1, 2, 3]);
-  });
-
-  it('deals different quilt blocks plus one other kind', () => {
-    const { objectives } = dealObjectives(4, 99);
-    const patterns = objectives.filter((objective) => objective.kind === 'pattern');
-    expect([patterns.length, new Set(patterns.map((objective) => objective.kind === 'pattern' && objective.pattern)).size]).toEqual([3, 3]);
+  it('is not met by a blank cloth when it asks for a dye', () => {
+    expect(progress(objectiveOf(['centre', YELLOW]), blankCloths(1)[0])).toBe(0);
   });
 });
 
-describe('commissions', () => {
-  it('scores a delivery and takes the cloth out of play', () => {
-    const start = createGame(2, RULES_V11);
-    const cloth = start.bench[0];
-    const after = applyMove(applyMove(start, { kind: 'deliver', clothId: cloth, commissionId: 0 }), { kind: 'endRound' });
-    expect([after.commissions[0].stars !== null, after.deck.includes(cloth) || after.bench.includes(cloth)]).toEqual([true, false]);
+describe('the generator', () => {
+  const seeds = Array.from({ length: 12 }, (_, index) => index + 1);
+
+  it('makes puzzles its own game solves', () => {
+    const solved = seeds.map((seed) => {
+      const game = createGame(seed, RULES_V12);
+      return game.puzzle.solution.reduce((state: WorkshopState, spray) => applyMove(state, { kind: 'spray', ...spray }), game).isSolved;
+    });
+    expect(solved.every(Boolean)).toBe(true);
   });
 
-  it('refuses a second delivery to a filled commission', () => {
-    const start = createGame(2, RULES_V11);
-    const once = applyMove(start, { kind: 'deliver', clothId: start.bench[0], commissionId: 0 });
-    expect(() => applyMove(once, { kind: 'deliver', clothId: start.bench[1], commissionId: 0 })).toThrow(IllegalMoveError);
+  it('sets par at one spray of each dye', () => {
+    expect(generatePuzzle(5, RULES_V12).par).toBe(3);
   });
 
-  it('ends once every commission is delivered', () => {
-    let state = createGame(2, RULES_V11);
-    for (const commission of state.commissions) state = applyMove(state, { kind: 'deliver', clothId: state.bench[0], commissionId: commission.id });
-    expect([state.isOver, totalStars(state) >= 0]).toEqual([true, true]);
+  it('asks for every dye somewhere, so par is also the fewest sprays', () => {
+    const objectives = generatePuzzle(9, RULES_V12).objectives;
+    const dyes = new Set(objectives.flatMap((objective) => objective.features.map((feature) => feature.colour)).filter((colour) => colour !== BARE));
+    expect(dyes.size).toBe(3);
   });
 
-  it('ends after the last round', () => {
-    let state = createGame(3, RULES_V11);
-    while (!state.isOver) state = applyMove(state, { kind: 'endRound' });
-    expect(state.round).toBe(RULES_V11.rounds);
+  it('gives at most one cloth a single feature', () => {
+    const singles = seeds.map((seed) => generatePuzzle(seed, RULES_V12).objectives.filter((objective) => objective.features.length < 2).length);
+    expect(Math.max(...singles)).toBeLessThanOrEqual(1);
   });
-});
 
-describe('random play', () => {
-  it('survives 100 random games without an illegal move', () => {
-    for (let seed = 1; seed <= 100; seed++) {
-      const rng = new Random(seed);
-      let state = createGame(seed, RULES_V11);
-      while (!state.isOver) state = applyMove(state, randomMove(state, rng));
-      expect(state.isOver).toBe(true);
-    }
+  it('makes the same puzzle from the same seed', () => {
+    expect(JSON.stringify(generatePuzzle(3, RULES_V12))).toBe(JSON.stringify(generatePuzzle(3, RULES_V12)));
   });
 });
 
-function randomMove(state: WorkshopState, rng: Random): WorkshopMove {
-  const roll = rng.next();
-  if (!state.hasSprayed && state.bench.length > 0 && roll < 0.6) {
-    const layout = state.bench.map((clothId) => at(clothId, rng.int(RULES_V11.benchSize + 1), rng.int(RULES_V11.benchSize + 1), rng.int(24)));
-    return { kind: 'spray', dye: rng.pick(DYES), layout };
-  }
-  if (state.bench.length > 0 && roll < 0.75) return { kind: 'deliver', clothId: rng.pick(state.bench), commissionId: rng.pick(openCommissions(state)).id };
-  return { kind: 'endRound' };
-}
+describe('play', () => {
+  it('starts with no cloth done', () => {
+    const game = createGame(4, RULES_V12);
+    expect(game.cloths.some((cloth) => isClothDone(game, cloth.id))).toBe(false);
+  });
+
+  it('counts each spray as a stroke', () => {
+    const game = applyMove(createGame(4, RULES_V12), { kind: 'spray', dye: RED, layout: [at(0, CENTRE, CENTRE)] });
+    expect(game.strokes).toBe(1);
+  });
+
+  it('refuses a spray with nothing on the bench', () => {
+    expect(() => applyMove(createGame(4, RULES_V12), { kind: 'spray', dye: RED, layout: [] })).toThrow(IllegalMoveError);
+  });
+
+  it('names scores like minigolf', () => {
+    expect([-1, 0, 1].map(parName)).toEqual(['Birdie', 'Par', 'Bogey']);
+  });
+
+  it('scores the generator’s own game at par', () => {
+    const game = createGame(6, RULES_V12);
+    const done = game.puzzle.solution.reduce((state: WorkshopState, spray) => applyMove(state, { kind: 'spray', ...spray }), game);
+    expect(scoreToPar(done)).toBe(0);
+  });
+});

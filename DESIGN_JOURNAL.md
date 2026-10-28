@@ -970,3 +970,61 @@ each target cloth at the bench centre:
 The hardest blocks need a fourth mask or a second pass for the third star. A hand of 4 leaves only 3
 cloths to mask with, so the difficulty spread comes from the hand size, which seems right. Getting the
 same cloth back on later rounds is a draw (4 of 6 per round), which is where planning meets luck.
+
+### The playtester's next direction (after v11)
+"Ok, this is getting there." Their direction:
+- **4 cloths, no basket.** "I know, not what the constraints meant at all, but let the game go where it
+  needs to go."
+- **4 objectives, one per cloth.**
+- **Minigolf scoring:** par is the number of sprays needed. "It'll be more like a puzzle than a game, but
+  that's where this wants to go."
+- **Engineer the solution by playing a semi-random game.** Define objectives loosely: not "find this
+  exact pattern" but "include this pattern". Keep the patterns simple.
+- **Start with par 3:** one spray of each colour.
+
+### Iteration 12 — v12: the puzzle
+- **Pieces.** 4 blank cloths, always at hand. Anything on the bench takes the spray, so a cloth left off
+  the bench is safe. Sprays cover, as in v11.
+- **Objectives are "includes".** Each is one or two *features*, and each feature is a simple region in
+  a colour:
+  - half;
+  - diagonal half;
+  - quarter;
+  - corner triangle;
+  - centre square;
+  - edge stripe (a third);
+  - middle band (a third).
+  A feature is met when at least 90 % of the region shows that colour; the rest of the cloth is free.
+  The features keep their positions relative to each other, but the whole objective may be turned or
+  flipped any way.
+- **Generator.** Seeded. It plays a semi-random game:
+  - sprays red, yellow and blue once each, in a random order;
+  - each spray covers a random subset of the cloths, laid around the bench centre;
+  - offsets are halves (±6) or, for 45° turns, ±4, so edges land on simple lines.
+  It then reads each finished cloth and offers every feature it shows cleanly (≥ 97 %), picking up to
+  two per cloth in different colours, at least one of them dyed. A puzzle is kept only if its objectives
+  use all three dyes, so par 3 is also the minimum number of sprays. The generator's own game is a
+  known solution, kept for showing after the hole.
+- **Scoring:** sprays against par: birdie, par, bogey. Start over at any time; the log keeps every
+  attempt.
+
+**Build notes (v12).**
+- New: `features.ts` (regions, "includes" checks), `generator.ts`, and a puzzle engine (`engine.ts`).
+- `cloth.ts` gained a pure `sprayed()`, shared by the engine and the generator.
+- The v11 commissions code is gone (in git history).
+
+**Generator findings.**
+- A first pass allowed one-feature objectives freely: 1.43 features per cloth. A single dyed feature is
+  met by spraying the whole cloth that colour, so most cloths needed no stencilling.
+- Requiring two features on every cloth never succeeded. The cloth on top in the *last* spray always
+  ends up one solid colour, so one cloth per puzzle is necessarily plain.
+- Rule adopted: up to two features per cloth, at most one single-feature cloth per puzzle (that one is
+  the natural stencil), and all three dyes asked for. 200/200 seeds generate, at about 170 ms each, and
+  each is solved at par by its own game.
+- Region mix in 200 puzzles: corners 527, quarters 361, edge stripes 201, halves 162, diagonal halves 73,
+  centres 48, middle bands 28. Corners dominate because nearly every cloth shows one cleanly. If that
+  reads as samey, the next lever is weighting picks towards larger regions.
+
+**Not measured:** whether par is ever beatable in practice. Objectives use all three dyes, so 3 is a
+hard floor. What I can't tell is whether some puzzles are much easier than others at par. That's the
+playtest question.

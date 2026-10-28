@@ -96,3 +96,15 @@ function mapQuad(quad: Quad, transform: (point: Point) => Point): Quad {
   return [transform(quad[0]), transform(quad[1]), transform(quad[2]), transform(quad[3])];
 }
 
+
+/** The eight ways to turn or flip a square about its centre, as maps on points. */
+export const SQUARE_SYMMETRIES: readonly ((point: Point) => Point)[] = [
+  (p) => ({ x: p.x, y: p.y }),
+  (p) => ({ x: -p.y, y: p.x }),
+  (p) => ({ x: -p.x, y: -p.y }),
+  (p) => ({ x: p.y, y: -p.x }),
+  (p) => ({ x: -p.x, y: p.y }),
+  (p) => ({ x: p.x, y: -p.y }),
+  (p) => ({ x: p.y, y: p.x }),
+  (p) => ({ x: -p.y, y: -p.x }),
+];

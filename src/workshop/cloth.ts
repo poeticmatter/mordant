@@ -1,5 +1,5 @@
 import type { Dye } from '../engine/shades.ts';
-import { isInsideConvex, isInsideSquare, type Point, type Quad } from './geometry.ts';
+import { coversFrom, isInsideConvex, isInsideSquare, type Placement, type Point, type Quad } from './geometry.ts';
 
 /** Undyed cloth. Patterns can ask for it like any dye. */
 export const BARE = 3;
@@ -16,8 +16,22 @@ export interface Cloth {
   id: number;
   /** Every spray the cloth has taken, oldest first. A cloth is exactly its history. */
   layers: SprayLayer[];
-  /** The commission it was delivered to, once delivered. */
-  deliveredTo: number | null;
+}
+
+export function blankCloths(count: number): Cloth[] {
+  return Array.from({ length: count }, (_, id) => ({ id, layers: [] }));
+}
+
+/**
+ * The cloths after one spray over `layout` (bottom first): each laid-out cloth takes a layer, masked
+ * wherever a cloth above it covers it. Cloths not on the bench are untouched.
+ */
+export function sprayed(cloths: readonly Cloth[], dye: Dye, layout: readonly Placement[], size: number): Cloth[] {
+  const layers = new Map(layout.map((placement, depth) => [placement.clothId, { dye, covers: coversFrom(layout, depth, size) }]));
+  return cloths.map((cloth) => {
+    const layer = layers.get(cloth.id);
+    return layer ? { ...cloth, layers: [...cloth.layers, layer] } : cloth;
+  });
 }
 
 /** The colour at a point of a cloth, in its own coordinates: the last dye that reached it, or bare cloth. */

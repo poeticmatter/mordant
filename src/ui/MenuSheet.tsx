@@ -5,16 +5,16 @@ interface MenuSheetProps {
   /** The playtest log as pasteable text. */
   exportText: string;
   finishedCount: number;
-  deckLabel: string;
+  /** A second shortcut beside Rules (the deck, for games that have one). */
+  deckShortcut?: { label: string; onOpen: () => void };
   onNewGame: (seed?: number) => void;
   onOpenRules: () => void;
-  onOpenDeck: () => void;
   onClose: () => void;
 }
 
 type CopyStatus = 'idle' | 'copied' | 'manual';
 
-export function MenuSheet({ seed, exportText, finishedCount, deckLabel, onNewGame, onOpenRules, onOpenDeck, onClose }: MenuSheetProps) {
+export function MenuSheet({ seed, exportText, finishedCount, deckShortcut, onNewGame, onOpenRules, onClose }: MenuSheetProps) {
   const [seedText, setSeedText] = useState('');
   const [copyStatus, setCopyStatus] = useState<CopyStatus>('idle');
 
@@ -41,7 +41,11 @@ export function MenuSheet({ seed, exportText, finishedCount, deckLabel, onNewGam
 
         <div className="mt-4 grid grid-cols-2 gap-2">
           <button type="button" onClick={onOpenRules} className="rounded-sm bg-slate-raised py-3 font-semibold">Rules</button>
-          <button type="button" onClick={onOpenDeck} className="rounded-sm bg-slate-raised py-3 font-semibold">{deckLabel}</button>
+          {deckShortcut && (
+            <button type="button" onClick={deckShortcut.onOpen} className="rounded-sm bg-slate-raised py-3 font-semibold">
+              {deckShortcut.label}
+            </button>
+          )}
         </div>
 
         <h3 className="mt-6 font-semibold">Playtest log</h3>
