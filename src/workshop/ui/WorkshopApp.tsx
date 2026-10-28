@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { BLUE, RED, YELLOW, type Dye } from '../../engine/shades.ts';
 import { formatLogForExport } from '../../ui/gameLog.ts';
 import { MenuSheet } from '../../ui/MenuSheet.tsx';
-import { RULES_V9 } from '../config.ts';
+import { RULES_V10 } from '../config.ts';
 import { scoreQuilt } from '../scoring.ts';
 import { Bench } from './Bench.tsx';
 import { ClothsSheet } from './ClothsSheet.tsx';
@@ -21,7 +21,7 @@ const DYE_BUTTONS: { dye: Dye; name: string; className: string }[] = [
 ];
 
 export function WorkshopApp() {
-  const session = useWorkshopSession(RULES_V9);
+  const session = useWorkshopSession(RULES_V10);
   const { game } = session;
   const [view, setView] = useState<View>(() => (session.logs.at(-1)?.moves.length ? 'game' : 'rules'));
 
@@ -88,14 +88,13 @@ function Workshop({ session }: { session: WorkshopSession }) {
         game={game}
         layout={layout}
         selectedClothId={selectedClothId}
-        isLocked={game.hasSprayed}
         onSelect={session.select}
         onMove={session.moveTo}
       />
 
       {selectedClothId !== null && quiltDraft === null && (
         <div className="flex flex-wrap gap-2">
-          {selectedIsLaidOut && !game.hasSprayed && (
+          {selectedIsLaidOut && (
             <>
               <button type="button" onClick={() => session.rotate(selectedClothId, -1)} className="rounded-sm border border-slate-line px-3 py-2">
                 Turn left 15°
@@ -126,11 +125,11 @@ function Workshop({ session }: { session: WorkshopSession }) {
             <li key={clothId}>
               <button
                 type="button"
-                onClick={() => (isOnBench(clothId) || game.hasSprayed ? session.select(clothId) : session.layOut(clothId))}
+                onClick={() => (isOnBench(clothId) ? session.select(clothId) : session.layOut(clothId))}
                 aria-pressed={clothId === selectedClothId}
                 className={`w-full rounded-sm p-1.5 ${clothId === selectedClothId ? 'bg-slate-raised outline-2 outline-chalk' : 'bg-slate-deep'}`}
               >
-                <Swatch threads={game.cloths[clothId].threads} label={`Cloth ${clothId + 1}`} />
+                <Swatch cloth={game.cloths[clothId]} size={game.config.clothSize} label={`Cloth ${clothId + 1}`} />
                 <span className="mt-1 block text-xs text-chalk-soft">{isOnBench(clothId) ? 'on the bench' : 'in hand'}</span>
               </button>
             </li>
@@ -140,7 +139,7 @@ function Workshop({ session }: { session: WorkshopSession }) {
 
       {quiltDraft === null && (game.hasSprayed ? (
         <div className="flex flex-wrap items-center gap-3">
-          <p className="min-w-40 flex-1 text-chalk-soft">Sprayed. Sew any finished cloth into the quilt, then end the round.</p>
+          <p className="min-w-40 flex-1 text-chalk-soft">Sprayed. Move the cloths around to see what each got, sew any finished one into the quilt, then end the round.</p>
           <button type="button" onClick={session.endRound} className="rounded-sm bg-weld px-5 py-3 font-semibold text-slate-deep">
             End the round
           </button>

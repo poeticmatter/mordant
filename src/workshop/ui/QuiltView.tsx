@@ -1,5 +1,5 @@
 import type { Patch, WorkshopState } from '../engine.ts';
-import { patchThreads, scoreQuilt, type QuiltScore } from '../scoring.ts';
+import { scoreQuilt, type QuiltScore } from '../scoring.ts';
 import { Swatch } from './Swatch.tsx';
 import type { QuiltDraft } from './useWorkshopSession.ts';
 
@@ -32,7 +32,12 @@ export function QuiltView({ game, draft, onChooseSlot }: QuiltViewProps) {
                 onClick={() => onChooseSlot(slot)}
                 className={isDraftSlot ? 'outline-2 outline-offset-1 outline-weld' : ''}
               >
-                <Swatch threads={patchThreads(game, patch)} label={isDraftSlot ? 'This cloth, sewn here' : `Quilt square ${slot + 1}`} />
+                <Swatch
+                  cloth={game.cloths[patch.clothId]}
+                  size={game.config.clothSize}
+                  turns={patch.turns}
+                  label={isDraftSlot ? 'This cloth, sewn here' : `Quilt square ${slot + 1}`}
+                />
               </button>
             );
           }
@@ -55,7 +60,7 @@ export function QuiltView({ game, draft, onChooseSlot }: QuiltViewProps) {
 export function ScoreLine({ score, label }: { score: QuiltScore; label: string }) {
   return (
     <p className="text-sm text-chalk-soft">
-      {label}: <span className="font-semibold text-chalk">{score.total}</span> ({score.seams} matching seam threads, {score.colourfulSquares} colourful{' '}
+      {label}: <span className="font-semibold text-chalk">{score.total}</span> ({score.seams} matching seam stitches, {score.colourfulSquares} colourful{' '}
       {score.colourfulSquares === 1 ? 'square' : 'squares'})
     </p>
   );

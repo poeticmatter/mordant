@@ -7,8 +7,8 @@ export function WorkshopRules({ config, onClose }: { config: WorkshopConfig; onC
     <article className="text-[17px] leading-relaxed">
       <h2 className="text-3xl font-extrabold">How it works</h2>
       <p className="mt-3">
-        Your deck is {config.clothCount} blank cloths. Over {config.rounds} rounds, dye patterns into them and sew the
-        best {quiltSize} into a quilt.
+        Your deck is {config.clothCount} blank cloths. Over {config.rounds} rounds, dye patterns into them and sew them
+        into a quilt of {quiltSize} squares.
       </p>
 
       <h3 className="mt-6 text-xl font-semibold">Each round</h3>
@@ -20,7 +20,7 @@ export function WorkshopRules({ config, onClose }: { config: WorkshopConfig; onC
         </li>
         <li>
           Spray one dye: red, yellow or blue. Everything you can see from above takes the dye. Whatever is covered by a
-          cloth on top stays as it was.
+          cloth on top stays as it was. Afterwards you can still drag cloths apart to see what each one got.
         </li>
         <li>Sew any cloth you're happy with into the quilt (you can do this at any time in the round).</li>
         <li>End the round. Cloths not in the quilt are shuffled back into the deck with their patterns.</li>
@@ -39,8 +39,8 @@ export function WorkshopRules({ config, onClose }: { config: WorkshopConfig; onC
       </p>
       <ul className="mt-2 list-disc space-y-1 pl-6">
         <li>
-          <strong>Seams:</strong> 1 point for every pair of touching threads across a seam that share a colour. Undyed and
-          brown never count.
+          <strong>Seams:</strong> each seam between two squares has {config.stitchesPerSeam} stitches; 1 point for every
+          stitch where both sides share a colour. Undyed and brown never count.
         </li>
         <li>
           <strong>Colourful squares:</strong> {config.colourfulBonus} points for each square showing at least{' '}

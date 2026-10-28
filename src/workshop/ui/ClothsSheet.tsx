@@ -23,7 +23,7 @@ export function ClothsSheet({ game, onClose }: { game: WorkshopState; onClose: (
               <ul className="mt-2 grid grid-cols-5 gap-2">
                 {here.map((cloth) => (
                   <li key={cloth.id}>
-                    <Swatch threads={cloth.threads} label={`Cloth ${cloth.id + 1}`} />
+                    <Swatch cloth={cloth} size={game.config.clothSize} label={`Cloth ${cloth.id + 1}`} />
                   </li>
                 ))}
               </ul>

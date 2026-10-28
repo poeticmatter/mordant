@@ -80,8 +80,9 @@ export function useWorkshopSession(config: WorkshopConfig) {
     setQuiltDraft(null);
   }, []);
 
+  /** The layout stays movable after spraying, so you can pull cloths apart to see what each got. */
   const updateLayout = useCallback((change: (layout: Placement[]) => Placement[]) => {
-    setSession((previous) => (previous.game.hasSprayed ? previous : { ...previous, layout: change(previous.layout) }));
+    setSession((previous) => ({ ...previous, layout: change(previous.layout) }));
   }, []);
 
   const centre = Math.round(config.benchSize * BENCH_CENTRE_SHARE);

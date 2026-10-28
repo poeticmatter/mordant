@@ -1,14 +1,14 @@
 import { shuffle } from '../engine/rng.ts';
 import type { Dye } from '../engine/shades.ts';
-import { exposedThreads, ROTATION_STEPS, type Placement } from './geometry.ts';
+import { coversFrom, isInsideQuad, isInsideSquare, ROTATION_STEPS, type Placement, type Point, type Quad } from './geometry.ts';
 
 /**
- * Selvedge v9, "Workshop": lay blank cloths on a bench, overlapping and turned as you like, and spray
+ * Selvedge "Workshop" (v9+): lay blank cloths on a bench, overlapping and turned as you like, and spray
  * them. Whatever lies on top resists the dye, so every cloth builds up a pattern from its history.
  * Finished cloths are sewn into a quilt.
  */
 
-/** The primaries soaked into a thread, as a bit set (`1 << dye` for each); 0 is undyed. */
+/** The primaries soaked into a spot of cloth, as a bit set (`1 << dye` for each); 0 is undyed. */
 export type Mix = number;
 export const UNDYED: Mix = 0;
 export const BROWN: Mix = 0b111;
@@ -20,23 +20,33 @@ export function mixOf(dye: Dye): Mix {
 export interface WorkshopConfig {
   version: string;
   clothCount: number;
-  /** Threads along each side of a cloth; a cloth is that many bench units wide. */
-  threads: number;
+  /** Side of a cloth, in bench units. */
+  clothSize: number;
   /** Bench width and height, in bench units. Cloth centres must lie on it. */
   benchSize: number;
   handSize: number;
   rounds: number;
   quiltWidth: number;
   quiltHeight: number;
+  /** Each seam is judged at this many evenly spaced stitches; each matching stitch scores 1. */
+  stitchesPerSeam: number;
   /** Points for a quilt square showing at least `colourfulMinimum` different dyed colours. */
   colourfulBonus: number;
   colourfulMinimum: number;
+  /** A colour counts as showing on a square once it covers at least this share of it. */
+  colourfulMinimumShare: number;
+}
+
+/** One spray a cloth took: the dye, and where cloths above it kept the dye off (in its own coordinates). */
+export interface SprayLayer {
+  dye: Dye;
+  covers: Quad[];
 }
 
 export interface Cloth {
   id: number;
-  /** Row-major, `threads × threads`. Threads only ever gain dye. */
-  threads: Mix[];
+  /** Every spray the cloth has taken, oldest first. Dye never washes out, so this is its whole pattern. */
+  layers: SprayLayer[];
   isQuilted: boolean;
 }
 
@@ -69,11 +79,7 @@ export interface WorkshopState {
 export class IllegalMoveError extends Error {}
 
 export function createGame(seed: number, config: WorkshopConfig): WorkshopState {
-  const cloths = Array.from({ length: config.clothCount }, (_, id): Cloth => ({
-    id,
-    threads: new Array<Mix>(config.threads * config.threads).fill(UNDYED),
-    isQuilted: false,
-  }));
+  const cloths = Array.from({ length: config.clothCount }, (_, id): Cloth => ({ id, layers: [], isQuilted: false }));
   const state: WorkshopState = {
     config,
     seed,
@@ -93,11 +99,22 @@ export function createGame(seed: number, config: WorkshopConfig): WorkshopState 
 export function cloneState(state: WorkshopState): WorkshopState {
   return {
     ...state,
-    cloths: state.cloths.map((cloth) => ({ ...cloth, threads: cloth.threads.slice() })),
+    // Layers are never mutated once made, so sharing them is safe.
+    cloths: state.cloths.map((cloth) => ({ ...cloth, layers: cloth.layers.slice() })),
     deck: state.deck.slice(),
     bench: state.bench.slice(),
     quilt: state.quilt.map((patch) => (patch === null ? null : { ...patch })),
   };
+}
+
+/** The dyes at a point of a cloth, in its own coordinates. */
+export function colourAt(cloth: Cloth, size: number, point: Point): Mix {
+  if (!isInsideSquare(size, point)) return UNDYED;
+  let mix = UNDYED;
+  for (const layer of cloth.layers) {
+    if (!layer.covers.some((quad) => isInsideQuad(quad, point))) mix |= mixOf(layer.dye);
+  }
+  return mix;
 }
 
 function isOnBench(state: WorkshopState, placement: Placement): boolean {
@@ -150,19 +167,13 @@ export function applyMoveInPlace(state: WorkshopState, move: WorkshopMove): void
   }
 }
 
-/** Every thread not covered by a cloth above it takes the dye. */
-export function sprayedThreads(state: WorkshopState, dye: Dye, layout: readonly Placement[]): Map<number, Mix[]> {
-  const exposed = exposedThreads(layout, state.config.threads);
-  return new Map(
-    layout.map((placement, depth) => [
-      placement.clothId,
-      state.cloths[placement.clothId].threads.map((mix, index) => (exposed[depth][index] ? mix | mixOf(dye) : mix)),
-    ]),
-  );
+/** The layer each laid-out cloth takes from a spray: everything not covered by a cloth above it. */
+export function sprayLayers(state: WorkshopState, dye: Dye, layout: readonly Placement[]): Map<number, SprayLayer> {
+  return new Map(layout.map((placement, depth) => [placement.clothId, { dye, covers: coversFrom(layout, depth, state.config.clothSize) }]));
 }
 
 function sprayInPlace(state: WorkshopState, dye: Dye, layout: readonly Placement[]): void {
-  for (const [clothId, threads] of sprayedThreads(state, dye, layout)) state.cloths[clothId].threads = threads;
+  for (const [clothId, layer] of sprayLayers(state, dye, layout)) state.cloths[clothId].layers.push(layer);
   state.hasSprayed = true;
 }
 

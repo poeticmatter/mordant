@@ -1,7 +1,7 @@
 import { useRef, type PointerEvent } from 'react';
 import type { WorkshopState } from '../engine.ts';
 import { ROTATION_STEP_DEGREES, type Placement } from '../geometry.ts';
-import { SwatchThreads } from './Swatch.tsx';
+import { ClothArt } from './Swatch.tsx';
 
 /** Room around the bench so a turned cloth near the edge is still fully visible (half a diagonal of 12). */
 const MARGIN = 9;
@@ -12,7 +12,6 @@ interface BenchProps {
   game: WorkshopState;
   layout: readonly Placement[];
   selectedClothId: number | null;
-  isLocked: boolean;
   onSelect: (clothId: number | null) => void;
   onMove: (clothId: number, x: number, y: number) => void;
 }
@@ -31,14 +30,15 @@ function clamp(value: number, max: number): number {
 }
 
 /**
- * The workshop bench. Cloths drawn later lie on top, and whatever you can see from above is
- * exactly what the spray will reach. Drag to move (snaps to whole threads); tap to select.
+ * The workshop bench. Cloths put down later lie on top, and whatever you can see from above is
+ * exactly what the spray will reach. Drag to move (snaps to whole units); tap to select. Cloths can
+ * still be moved after spraying, to look at what each one got.
  */
-export function Bench({ game, layout, selectedClothId, isLocked, onSelect, onMove }: BenchProps) {
+export function Bench({ game, layout, selectedClothId, onSelect, onMove }: BenchProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const dragRef = useRef<Drag | null>(null);
-  const { benchSize, threads } = game.config;
-  const half = threads / 2;
+  const { benchSize, clothSize } = game.config;
+  const half = clothSize / 2;
 
   function benchPoint(event: PointerEvent): { x: number; y: number } | null {
     const svg = svgRef.current;
@@ -52,7 +52,7 @@ export function Bench({ game, layout, selectedClothId, isLocked, onSelect, onMov
     event.stopPropagation();
     onSelect(placement.clothId);
     const point = benchPoint(event);
-    if (isLocked || !point) return;
+    if (!point) return;
     event.currentTarget.setPointerCapture(event.pointerId);
     dragRef.current = { clothId: placement.clothId, pointerId: event.pointerId, startX: point.x, startY: point.y, originX: placement.x, originY: placement.y };
   }
@@ -92,14 +92,14 @@ export function Bench({ game, layout, selectedClothId, isLocked, onSelect, onMov
             onPointerMove={continueDrag}
             onPointerUp={endDrag}
             onPointerCancel={endDrag}
-            className={isLocked ? '' : 'cursor-grab'}
+            className="cursor-grab"
             role="img"
             aria-label={`Cloth ${placement.clothId + 1}${isSelected ? ', selected' : ''}`}
           >
-            <rect x={-half - 0.25} y={-half - 0.25} width={threads + 0.5} height={threads + 0.5} fill="var(--color-slate)" opacity={0.6} />
-            <SwatchThreads threads={game.cloths[placement.clothId].threads} size={threads} x={-half} y={-half} />
+            <rect x={-half - 0.25} y={-half - 0.25} width={clothSize + 0.5} height={clothSize + 0.5} fill="var(--color-slate)" opacity={0.6} />
+            <ClothArt cloth={game.cloths[placement.clothId]} size={clothSize} />
             {isSelected && (
-              <rect x={-half} y={-half} width={threads} height={threads} fill="none" stroke="var(--color-chalk)" strokeWidth={0.5} />
+              <rect x={-half} y={-half} width={clothSize} height={clothSize} fill="none" stroke="var(--color-chalk)" strokeWidth={0.5} />
             )}
           </g>
         );

@@ -871,3 +871,22 @@ Choices I made where the brief left room, all meant to be changed:
 - The playtest log, storage and menu are now shared by both games (`MoveCodec` per game).
 - v8 stays playable at `#v8`.
 - Not seen in a browser yet; render tests only.
+
+### Iteration 10: first-look feedback on v9
+The playtester sent a screenshot after a first look, with three requests:
+- "The painted cloth is pixelated, that doesn't look good and is very unsatisfying."
+- "I want to be able to move the cloth around on the workshop after I spray to see what I got."
+- "Less cloths in the basket… exactly the size of the quilt maybe?"
+
+**Changes (v10).**
+- **Exact dye shapes.** A cloth no longer holds a 12 × 12 thread grid. It holds its spray history: each
+  spray's dye plus the quads of the cloths that covered it, in the cloth's own coordinates. Colour at a
+  point is the union of the dyes of every spray that reached it.
+  - *Drawing:* one SVG mask per spray (the cloth minus its covers). Each dye is the union of its masks.
+    Mixed colours are painted where dye masks intersect, so edges are exact at any zoom.
+  - *Scoring:* samples the same geometry. 12 stitches per seam; colours count as "showing" above 2 % of
+    a 24 × 24 sample grid.
+  - The history is now literally the card's memory: a cloth *is* its list of sprays.
+- **The layout stays movable after spraying.** Moving changes nothing in the rules; it's for looking.
+- **9 cloths = 9 quilt squares.** Every cloth you dye is one you'll sew, so no dyeing is wasted on
+  spares. I expect this to make each cloth matter more, and to remove the choice of which to leave out.
