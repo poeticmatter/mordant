@@ -50,19 +50,28 @@ export function squareCorners(size: number): Quad {
   ];
 }
 
-/** Strictly inside a convex quad, whichever way round its corners run. */
-export function isInsideQuad(quad: Quad, point: Point): boolean {
-  let sign = 0;
-  for (let index = 0; index < quad.length; index++) {
-    const from = quad[index];
-    const to = quad[(index + 1) % quad.length];
+/** Below this, a point counts as lying on an edge: floating-point noise shouldn't pick a side. */
+const EDGE_TOLERANCE = 1e-9;
+
+/** Which side of each edge a point lies on: +1 or −1, or 0 when it lies on the edge. */
+function edgeSides(polygon: readonly Point[], point: Point): number[] {
+  return polygon.map((from, index) => {
+    const to = polygon[(index + 1) % polygon.length];
     const cross = (to.x - from.x) * (point.y - from.y) - (to.y - from.y) * (point.x - from.x);
-    if (cross === 0) return false;
-    const side = Math.sign(cross);
-    if (sign !== 0 && side !== sign) return false;
-    sign = side;
-  }
-  return true;
+    return Math.abs(cross) <= EDGE_TOLERANCE ? 0 : Math.sign(cross);
+  });
+}
+
+/** Strictly inside a convex polygon, whichever way round its corners run. Points on an edge are outside. */
+export function isInsideConvex(polygon: readonly Point[], point: Point): boolean {
+  const sides = edgeSides(polygon, point);
+  return sides.every((side) => side === sides[0] && side !== 0);
+}
+
+/** Inside a convex polygon or on its edge. */
+export function isInsideOrOnConvex(polygon: readonly Point[], point: Point): boolean {
+  const sides = edgeSides(polygon, point).filter((side) => side !== 0);
+  return sides.every((side) => side === sides[0]);
 }
 
 export function isInsideSquare(size: number, point: Point): boolean {
@@ -87,7 +96,3 @@ function mapQuad(quad: Quad, transform: (point: Point) => Point): Quad {
   return [transform(quad[0]), transform(quad[1]), transform(quad[2]), transform(quad[3])];
 }
 
-/** A point of a quilt square, turned `turns` quarter turns clockwise, back to the cloth's own coordinates. */
-export function unturned(point: Point, turns: number): Point {
-  return rotated(point, (-turns * Math.PI) / 2);
-}

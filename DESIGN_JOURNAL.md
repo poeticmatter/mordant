@@ -890,3 +890,83 @@ The playtester sent a screenshot after a first look, with three requests:
 - **The layout stays movable after spraying.** Moving changes nothing in the rules; it's for looking.
 - **9 cloths = 9 quilt squares.** Every cloth you dye is one you'll sew, so no dyeing is wasted on
   spares. I expect this to make each cloth matter more, and to remove the choice of which to leave out.
+
+### Feedback on v10 and the direction for v11
+The playtester's words:
+- "It's better, but the scoring rules are not good enough to guide anything interesting. I also wanted to
+  have several random objectives each game."
+- "I would prefer it without colour mixing."
+- "Come up with some rules for scoring. Preferably ones that can be presented visually… blue must cover
+  at least 50 %… adjacency, patterns, symmetry, etc."
+- "Quilts usually use very simple shapes and connect them for a striking effect, like a half and half
+  diagonal square. But I am looking to produce some of those striking patterns inside an individual
+  quilt [square]. So maybe quilting is not the best endgame, but interesting patterns on single sheets."
+
+### Iteration 11 — v11: commissions for patterned sheets
+**Colour.** No mixing: a spray *covers* whatever was there, like screen printing. Each part of a cloth
+shows the last dye that reached it, or bare cloth. Layering order now matters instead of combining.
+
+**Endgame.** No quilt. Each game deals **4 random commissions**. Deliver one finished cloth to each, at any
+time. It scores 0–3 stars by how closely it matches, and leaves the game. Score = total stars (max 12).
+Cloths you never deliver are your stencils: they still lie on the bench and take dye.
+
+**Commissions are pictures.** Each card shows its target. How close a cloth is gets measured on a
+24 × 24 grid of sample points, as a match percentage:
+- **Quilt blocks**, in named colours (bare cloth counts as a colour). Any rotation or mirror image is
+  accepted.
+  - Half-square triangle (diagonal split);
+  - Hourglass (four triangles, opposite pairs alike);
+  - Square in a square;
+  - Four-patch (checkerboard of quarters);
+  - Diamond in a square;
+  - Cross;
+  - Three bars, in three colours.
+  Match = the best share of sample points that have the colour the block wants there.
+- **Coverage:** "blue covers at least half." Match = share ÷ target, capped at 100 %.
+- **Mirror:** the cloth looks the same reflected across some axis (vertical, horizontal or diagonal),
+  using at least two colours that each cover 15 %.
+- **Kept apart:** two named dyes each cover at least 20 % and never touch.
+
+**Stars:** 70 % = ★, 85 % = ★★, 95 % = ★★★.
+
+**Deal:** 3 different quilt blocks plus 1 of the other kinds, all seeded. 6 cloths, 4 drawn per round,
+8 rounds, one spray per round.
+
+**Why these.** Every block is a striking quilt motif the stencil mechanic can make *inside one sheet*:
+- a turned cloth gives a diagonal;
+- a centred cloth gives a square in a square;
+- two passes give an hourglass.
+
+Each needs layered sprays with different masks, so a cloth's history is the plan. Scores are
+continuous (match %), so a near miss shows how near it is, and the card can show it live for the
+selected cloth.
+
+**Build notes (v11).**
+- `cloth.ts`: colour model and readings.
+- `objectives.ts`: blocks as polygons in unit coordinates, matching under the 8 symmetries.
+- Engine: commissions and delivery.
+- UI: commission cards with drawn pictures and a live match % for the selected cloth, plus a delivery
+  confirmation.
+- One consistency fix: a sample lying exactly on a block's edge (the diagonal grid points) may match
+  either side. Without it a perfect half-square triangle read 96–99 %.
+
+**Can each commission be made?** These are real bench layouts (whole-unit positions, 15° turns),
+each target cloth at the bench centre:
+
+| Commission | Layering | Match |
+|---|---|---|
+| Half-square triangle | one 45° cover, centre offset (4, 4) | 95.8 % ★★★ |
+| Half-square triangle | two 45° covers along the diagonal | 100 % |
+| Hourglass | dye A; dye B with 45° covers over top and bottom | 100 % |
+| Four-patch | dye A; dye B with covers on two opposite quarters | 100 % |
+| Square in a square | dye A; dye B with 3 side covers | 87.5 % ★★ |
+| Square in a square | … then dye A again with one cover leaving the fourth strip | 100 % |
+| Three bars | dye A; dye C with the left two-thirds covered; dye B with both outer bars covered | 100 % |
+| Diamond in a square | dye A; dye B with 3 of 4 corners covered | 88.5 % ★★ |
+| Cross | dye A; dye B with 3 of 4 corners covered | 88.9 % ★★ |
+| Mirror image | one straight cover, half and half | 100 % |
+| Kept apart | two sprays, each masked, leaving a bare stripe | 100 % |
+
+The hardest blocks need a fourth mask or a second pass for the third star. A hand of 4 leaves only 3
+cloths to mask with, so the difficulty spread comes from the hand size, which seems right. Getting the
+same cloth back on later rounds is a draw (4 of 6 per round), which is where planning meets luck.

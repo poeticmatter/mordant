@@ -1,10 +1,10 @@
 import type { WorkshopState } from '../engine.ts';
 import { Swatch } from './Swatch.tsx';
 
-const PLACES = ['drawn this round', 'in the deck', 'in the quilt'] as const;
+const PLACES = ['drawn this round', 'in the deck', 'delivered'] as const;
 
 function placeOf(game: WorkshopState, clothId: number): (typeof PLACES)[number] {
-  if (game.cloths[clothId].isQuilted) return 'in the quilt';
+  if (game.cloths[clothId].deliveredTo !== null) return 'delivered';
   return game.bench.includes(clothId) ? 'drawn this round' : 'in the deck';
 }
 

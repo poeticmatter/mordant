@@ -4,15 +4,15 @@ import type { WorkshopMove } from '../engine.ts';
 
 /**
  * `s <dye> <cloth>,<x>,<y>,<rotation> …` for a spray (layout bottom first),
- * `q <cloth> <slot> <quarter turns>` for sewing into the quilt, `n` for ending the round.
+ * `d <cloth> <commission>` for a delivery, `n` for ending the round.
  */
 export const workshopMoveCodec: MoveCodec<WorkshopMove> = {
   encode(move) {
     switch (move.kind) {
       case 'spray':
         return ['s', move.dye, ...move.layout.map((placement) => `${placement.clothId},${placement.x},${placement.y},${placement.rotation}`)].join(' ');
-      case 'quilt':
-        return `q ${move.clothId} ${move.slot} ${move.turns}`;
+      case 'deliver':
+        return `d ${move.clothId} ${move.commissionId}`;
       case 'endRound':
         return 'n';
     }
@@ -20,7 +20,7 @@ export const workshopMoveCodec: MoveCodec<WorkshopMove> = {
   decode(text) {
     const [kind, ...parts] = text.trim().split(' ');
     if (kind === 'n') return { kind: 'endRound' };
-    if (kind === 'q') return { kind: 'quilt', clothId: Number(parts[0]), slot: Number(parts[1]), turns: Number(parts[2]) };
+    if (kind === 'd') return { kind: 'deliver', clothId: Number(parts[0]), commissionId: Number(parts[1]) };
     if (kind === 's') {
       const [dye, ...placements] = parts;
       return {

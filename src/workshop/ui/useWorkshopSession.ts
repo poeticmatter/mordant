@@ -3,9 +3,8 @@ import type { Dye } from '../../engine/shades.ts';
 import { startLog, withEvent, withFinalScore, withMove, type GameLog } from '../../ui/gameLog.ts';
 import { randomSeed } from '../../ui/session.ts';
 import { LOG_KEYS, loadLogs, saveLogs } from '../../ui/storage.ts';
-import { applyMove, createGame, type WorkshopConfig, type WorkshopMove, type WorkshopState } from '../engine.ts';
+import { applyMove, createGame, totalStars, type WorkshopConfig, type WorkshopMove, type WorkshopState } from '../engine.ts';
 import { ROTATION_STEPS, type Placement } from '../geometry.ts';
-import { scoreQuilt } from '../scoring.ts';
 
 type Log = GameLog<WorkshopMove>;
 
@@ -16,11 +15,10 @@ interface SessionState {
   layout: Placement[];
 }
 
-/** A cloth on its way into the quilt: where it would go and how it would be turned. */
-export interface QuiltDraft {
+/** A delivery waiting for confirmation. */
+export interface PendingDelivery {
   clothId: number;
-  slot: number | null;
-  turns: number;
+  commissionId: number;
 }
 
 function replayGame(seed: number, moves: readonly WorkshopMove[], config: WorkshopConfig): WorkshopState {
@@ -63,7 +61,7 @@ const BENCH_CENTRE_SHARE = 0.5;
 export function useWorkshopSession(config: WorkshopConfig) {
   const [session, setSession] = useState<SessionState>(() => resumeOrStart(config));
   const [selectedClothId, setSelectedClothId] = useState<number | null>(null);
-  const [quiltDraft, setQuiltDraft] = useState<QuiltDraft | null>(null);
+  const [pendingDelivery, setPendingDelivery] = useState<PendingDelivery | null>(null);
 
   useEffect(() => saveLogs(LOG_KEYS.workshop, session.logs), [session.logs]);
 
@@ -71,13 +69,13 @@ export function useWorkshopSession(config: WorkshopConfig) {
     setSession((previous) => {
       const game = applyMove(previous.game, move);
       let log = withMove(previous.logs[previous.logs.length - 1], move);
-      if (game.isOver) log = withFinalScore(log, scoreQuilt(game).total);
+      if (game.isOver) log = withFinalScore(log, totalStars(game));
       const layout =
-        move.kind === 'endRound' ? [] : move.kind === 'quilt' ? previous.layout.filter((placement) => placement.clothId !== move.clothId) : previous.layout;
+        move.kind === 'endRound' ? [] : move.kind === 'deliver' ? previous.layout.filter((placement) => placement.clothId !== move.clothId) : previous.layout;
       return { logs: replaceCurrentLog(previous.logs, log), game, layout };
     });
     setSelectedClothId(null);
-    setQuiltDraft(null);
+    setPendingDelivery(null);
   }, []);
 
   /** The layout stays movable after spraying, so you can pull cloths apart to see what each got. */
@@ -92,7 +90,7 @@ export function useWorkshopSession(config: WorkshopConfig) {
     logs: session.logs,
     layout: session.layout,
     selectedClothId,
-    quiltDraft,
+    pendingDelivery,
     select: setSelectedClothId,
     /** Puts a cloth from the tray on top of the pile, in the middle of the bench. */
     layOut: (clothId: number) => {
@@ -115,15 +113,14 @@ export function useWorkshopSession(config: WorkshopConfig) {
     },
     spray: (dye: Dye) => play({ kind: 'spray', dye, layout: session.layout }),
     endRound: () => play({ kind: 'endRound' }),
-    startQuilting: (clothId: number) => setQuiltDraft({ clothId, slot: null, turns: 0 }),
-    chooseSlot: (slot: number) => setQuiltDraft((draft) => (draft === null ? null : { ...draft, slot })),
-    turnDraft: () => setQuiltDraft((draft) => (draft === null ? null : { ...draft, turns: (draft.turns + 1) % 4 })),
-    cancelQuilting: () => setQuiltDraft(null),
-    sewDraft: () => quiltDraft !== null && quiltDraft.slot !== null && play({ kind: 'quilt', clothId: quiltDraft.clothId, slot: quiltDraft.slot, turns: quiltDraft.turns }),
+    /** Asks to deliver the selected cloth to a commission; nothing happens until confirmed. */
+    proposeDelivery: (commissionId: number) => selectedClothId !== null && setPendingDelivery({ clothId: selectedClothId, commissionId }),
+    cancelDelivery: () => setPendingDelivery(null),
+    confirmDelivery: () => pendingDelivery !== null && play({ kind: 'deliver', ...pendingDelivery }),
     newGame: (seed: number = randomSeed()) => {
       setSession((previous) => startFresh(config, previous.logs, seed));
       setSelectedClothId(null);
-      setQuiltDraft(null);
+      setPendingDelivery(null);
     },
     recordEvent: (kind: string) =>
       setSession((previous) => ({ ...previous, logs: replaceCurrentLog(previous.logs, withEvent(previous.logs[previous.logs.length - 1], kind)) })),

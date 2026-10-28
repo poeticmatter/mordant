@@ -1,14 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { Random } from '../engine/rng.ts';
 import { BLUE, DYES, RED, YELLOW, type Dye } from '../engine/shades.ts';
-import { RULES_V10 } from './config.ts';
-import { applyMove, colourAt, createGame, freeSlots, IllegalMoveError, mixOf, UNDYED, type Cloth, type WorkshopMove, type WorkshopState } from './engine.ts';
-import { coversFrom, isInsideQuad, squareCorners, toBench, toLocal, unturned, type Placement } from './geometry.ts';
-import { scoreQuilt, showingColours } from './scoring.ts';
+import { BARE, colourAt, readCloth, type Cloth, type Colour } from './cloth.ts';
+import { RULES_V11 } from './config.ts';
+import { applyMove, createGame, IllegalMoveError, openCommissions, totalStars, type WorkshopMove, type WorkshopState } from './engine.ts';
+import { coversFrom, isInsideConvex, squareCorners, toBench, toLocal, type Placement, type Point } from './geometry.ts';
+import { dealObjectives, matchOf, starsFor, type Objective } from './objectives.ts';
 
-const SIZE = RULES_V10.clothSize;
+const SIZE = RULES_V11.clothSize;
 const HALF = SIZE / 2;
-const ORANGE = mixOf(RED) | mixOf(YELLOW);
 
 function at(clothId: number, x: number, y: number, rotation = 0): Placement {
   return { clothId, x, y, rotation };
@@ -20,6 +20,27 @@ function sprayed(state: WorkshopState, dye: Dye, layout: Placement[]): WorkshopS
 
 function round(value: number): number {
   return Math.round(value * 1000) / 1000;
+}
+
+/** A cloth built straight from layers, for judging objectives without playing a game. */
+function clothOf(...layers: { dye: Dye; covers?: Point[][] }[]): Cloth {
+  return {
+    id: 0,
+    layers: layers.map(({ dye, covers = [] }) => ({ dye, covers: covers.map((quad) => [quad[0], quad[1], quad[2], quad[3]] as const) })),
+    deliveredTo: null,
+  };
+}
+
+/** Covers everything below-right of the cloth's falling diagonal (x + y > 0). */
+const BELOW_DIAGONAL: Point[] = [
+  { x: -SIZE, y: SIZE },
+  { x: SIZE, y: -SIZE },
+  { x: 2 * SIZE, y: 0 },
+  { x: 0, y: 2 * SIZE },
+];
+
+function match(objective: Objective, cloth: Cloth): number {
+  return matchOf(objective, readCloth(cloth, SIZE));
 }
 
 describe('geometry', () => {
@@ -36,7 +57,7 @@ describe('geometry', () => {
 
   it('sees a cloth above as a quad over the one below', () => {
     const [cover] = coversFrom([at(0, 18, 18), at(1, 24, 18)], 0, SIZE);
-    expect([isInsideQuad(cover, { x: 5, y: 0 }), isInsideQuad(cover, { x: -5, y: 0 })]).toEqual([true, false]);
+    expect([isInsideConvex(cover, { x: 5, y: 0 }), isInsideConvex(cover, { x: -5, y: 0 })]).toEqual([true, false]);
   });
 
   it('leaves the top cloth uncovered', () => {
@@ -47,126 +68,128 @@ describe('geometry', () => {
     expect(coversFrom([at(0, 0, 0), at(1, 36, 36)], 0, SIZE)).toEqual([]);
   });
 
-  it('undoes a quilt square’s quarter turn', () => {
-    const point = unturned({ x: HALF - 1, y: 0 }, 1);
-    expect([round(point.x), round(point.y)]).toEqual([0, -(HALF - 1)]);
-  });
-
   it('lists the square’s corners clockwise from top-left', () => {
-    expect(squareCorners(2)).toEqual([
-      { x: -1, y: -1 },
-      { x: 1, y: -1 },
-      { x: 1, y: 1 },
-      { x: -1, y: 1 },
-    ]);
+    expect(squareCorners(2)[1]).toEqual({ x: 1, y: -1 });
   });
 });
 
 describe('spraying', () => {
   it('dyes the exposed part of a lower cloth', () => {
-    const start = createGame(1, RULES_V10);
+    const start = createGame(1, RULES_V11);
     const [lower, upper] = start.bench;
     const after = sprayed(start, RED, [at(lower, 18, 18), at(upper, 24, 18)]);
-    expect(colourAt(after.cloths[lower], SIZE, { x: -5, y: 0 })).toBe(mixOf(RED));
+    expect(colourAt(after.cloths[lower], SIZE, { x: -5, y: 0 })).toBe(RED);
   });
 
   it('leaves the covered part of a lower cloth as it was', () => {
-    const start = createGame(1, RULES_V10);
+    const start = createGame(1, RULES_V11);
     const [lower, upper] = start.bench;
     const after = sprayed(start, RED, [at(lower, 18, 18), at(upper, 24, 18)]);
-    expect(colourAt(after.cloths[lower], SIZE, { x: 5, y: 0 })).toBe(UNDYED);
+    expect(colourAt(after.cloths[lower], SIZE, { x: 5, y: 0 })).toBe(BARE);
   });
 
   it('follows a turned cloth’s diagonal edge', () => {
-    const start = createGame(1, RULES_V10);
+    const start = createGame(1, RULES_V11);
     const [lower, upper] = start.bench;
     const after = sprayed(start, BLUE, [at(lower, 18, 18), at(upper, 18, 18, 3)]);
     const cloth = after.cloths[lower];
-    expect([colourAt(cloth, SIZE, { x: -5.9, y: -5.9 }), colourAt(cloth, SIZE, { x: 0, y: -5.9 })]).toEqual([mixOf(BLUE), UNDYED]);
+    expect([colourAt(cloth, SIZE, { x: -5.9, y: -5.9 }), colourAt(cloth, SIZE, { x: 0, y: -5.9 })]).toEqual([BLUE, BARE]);
   });
 
-  it('mixes a second dye into what is already there', () => {
-    let state = createGame(1, RULES_V10);
-    const [cloth] = state.bench;
-    state = sprayed(state, RED, [at(cloth, 18, 18)]);
-    state = applyMove(state, { kind: 'endRound' });
-    state = { ...state, bench: [cloth, ...state.bench.filter((id) => id !== cloth)] };
-    state = sprayed(state, YELLOW, [at(cloth, 18, 18)]);
-    expect(colourAt(state.cloths[cloth], SIZE, { x: 0, y: 0 })).toBe(ORANGE);
+  it('covers an earlier dye rather than mixing with it', () => {
+    expect(colourAt(clothOf({ dye: RED }, { dye: YELLOW }), SIZE, { x: 0, y: 0 })).toBe(YELLOW);
+  });
+
+  it('keeps the earlier dye where the later spray was masked', () => {
+    expect(colourAt(clothOf({ dye: RED }, { dye: YELLOW, covers: [BELOW_DIAGONAL] }), SIZE, { x: 3, y: 3 })).toBe(RED);
   });
 
   it('allows one spray per round', () => {
-    const start = createGame(1, RULES_V10);
+    const start = createGame(1, RULES_V11);
     const once = sprayed(start, RED, [at(start.bench[0], 18, 18)]);
     expect(() => sprayed(once, BLUE, [at(start.bench[0], 18, 18)])).toThrow(IllegalMoveError);
   });
 
   it('rejects a cloth laid off the bench', () => {
-    const start = createGame(1, RULES_V10);
-    expect(() => sprayed(start, RED, [at(start.bench[0], RULES_V10.benchSize + 1, 18)])).toThrow(IllegalMoveError);
+    const start = createGame(1, RULES_V11);
+    expect(() => sprayed(start, RED, [at(start.bench[0], RULES_V11.benchSize + 1, 18)])).toThrow(IllegalMoveError);
   });
 });
 
-describe('rounds and the quilt', () => {
-  it('has exactly as many cloths as quilt squares', () => {
-    expect(RULES_V10.clothCount).toBe(RULES_V10.quiltWidth * RULES_V10.quiltHeight);
+describe('objectives', () => {
+  const halfSquare = (first: Colour, second: Colour): Objective => ({ kind: 'pattern', pattern: 'halfSquare', colours: [first, second] });
+
+  it('fully matches a half-square triangle made with a diagonal mask', () => {
+    expect(match(halfSquare(BLUE, BARE), clothOf({ dye: BLUE, covers: [BELOW_DIAGONAL] }))).toBe(1);
   });
 
-  it('returns unquilted bench cloths to the deck at the end of a round', () => {
-    const after = applyMove(createGame(2, RULES_V10), { kind: 'endRound' });
-    expect(after.deck.length + after.bench.length).toBe(RULES_V10.clothCount);
+  it('accepts a block turned the other way round', () => {
+    expect(match(halfSquare(BARE, BLUE), clothOf({ dye: BLUE, covers: [BELOW_DIAGONAL] }))).toBe(1);
   });
 
-  it('takes a quilted cloth out of play for good', () => {
-    const start = createGame(2, RULES_V10);
+  it('half matches a half-square triangle on a cloth of one colour', () => {
+    expect(round(match(halfSquare(BLUE, RED), clothOf({ dye: BLUE })))).toBeCloseTo(0.5, 1);
+  });
+
+  it('fully matches a four-patch made with two offset masks', () => {
+    const topLeft = squareCorners(SIZE).map((corner) => ({ x: corner.x - HALF, y: corner.y - HALF }));
+    const bottomRight = squareCorners(SIZE).map((corner) => ({ x: corner.x + HALF, y: corner.y + HALF }));
+    const cloth = clothOf({ dye: RED }, { dye: YELLOW, covers: [topLeft, bottomRight] });
+    expect(match({ kind: 'pattern', pattern: 'fourPatch', colours: [RED, YELLOW] }, cloth)).toBe(1);
+  });
+
+  it('measures coverage against the share asked for', () => {
+    expect(match({ kind: 'coverage', colour: BLUE, share: 0.5 }, clothOf({ dye: BLUE, covers: [BELOW_DIAGONAL] }))).toBe(1);
+  });
+
+  it('finds a mirror line on a diagonal split', () => {
+    expect(match({ kind: 'mirror', minimumShare: 0.15 }, clothOf({ dye: BLUE, covers: [BELOW_DIAGONAL] }))).toBe(1);
+  });
+
+  it('gives no mirror credit to a cloth of one colour', () => {
+    expect(match({ kind: 'mirror', minimumShare: 0.15 }, clothOf({ dye: BLUE }))).toBe(0);
+  });
+
+  it('marks down two dyes that touch along a long edge', () => {
+    const touching = clothOf({ dye: RED }, { dye: BLUE, covers: [BELOW_DIAGONAL] });
+    expect(match({ kind: 'apart', first: RED, second: BLUE, minimumShare: 0.2 }, touching)).toBeLessThan(0.1);
+  });
+
+  it('awards stars at the thresholds', () => {
+    expect([0.69, 0.7, 0.9, 0.95].map((value) => starsFor(value, RULES_V11.starThresholds))).toEqual([0, 1, 2, 3]);
+  });
+
+  it('deals different quilt blocks plus one other kind', () => {
+    const { objectives } = dealObjectives(4, 99);
+    const patterns = objectives.filter((objective) => objective.kind === 'pattern');
+    expect([patterns.length, new Set(patterns.map((objective) => objective.kind === 'pattern' && objective.pattern)).size]).toEqual([3, 3]);
+  });
+});
+
+describe('commissions', () => {
+  it('scores a delivery and takes the cloth out of play', () => {
+    const start = createGame(2, RULES_V11);
     const cloth = start.bench[0];
-    const after = applyMove(applyMove(start, { kind: 'quilt', clothId: cloth, slot: 4, turns: 1 }), { kind: 'endRound' });
-    expect([after.quilt[4]?.clothId, after.deck.includes(cloth) || after.bench.includes(cloth)]).toEqual([cloth, false]);
+    const after = applyMove(applyMove(start, { kind: 'deliver', clothId: cloth, commissionId: 0 }), { kind: 'endRound' });
+    expect([after.commissions[0].stars !== null, after.deck.includes(cloth) || after.bench.includes(cloth)]).toEqual([true, false]);
+  });
+
+  it('refuses a second delivery to a filled commission', () => {
+    const start = createGame(2, RULES_V11);
+    const once = applyMove(start, { kind: 'deliver', clothId: start.bench[0], commissionId: 0 });
+    expect(() => applyMove(once, { kind: 'deliver', clothId: start.bench[1], commissionId: 0 })).toThrow(IllegalMoveError);
+  });
+
+  it('ends once every commission is delivered', () => {
+    let state = createGame(2, RULES_V11);
+    for (const commission of state.commissions) state = applyMove(state, { kind: 'deliver', clothId: state.bench[0], commissionId: commission.id });
+    expect([state.isOver, totalStars(state) >= 0]).toEqual([true, true]);
   });
 
   it('ends after the last round', () => {
-    let state = createGame(3, RULES_V10);
+    let state = createGame(3, RULES_V11);
     while (!state.isOver) state = applyMove(state, { kind: 'endRound' });
-    expect(state.round).toBe(RULES_V10.rounds);
-  });
-});
-
-describe('scoring', () => {
-  /** A cloth sprayed whole with each dye in turn. */
-  function solid(id: number, ...dyes: Dye[]): Cloth {
-    return { id, layers: dyes.map((dye) => ({ dye, covers: [] })), isQuilted: true };
-  }
-
-  function quiltOf(left: Cloth, right: Cloth): WorkshopState {
-    const state = createGame(4, RULES_V10);
-    state.cloths[0] = { ...left, id: 0 };
-    state.cloths[1] = { ...right, id: 1 };
-    state.quilt = state.quilt.map((_, slot) => (slot === 0 ? { clothId: 0, turns: 0 } : slot === 1 ? { clothId: 1, turns: 0 } : null));
-    return state;
-  }
-
-  it('scores every stitch of a seam between two same-coloured squares', () => {
-    expect(scoreQuilt(quiltOf(solid(0, RED, YELLOW), solid(1, RED, YELLOW))).seams).toBe(RULES_V10.stitchesPerSeam);
-  });
-
-  it('never matches brown', () => {
-    expect(scoreQuilt(quiltOf(solid(0, RED, YELLOW, BLUE), solid(1, RED, YELLOW, BLUE))).seams).toBe(0);
-  });
-
-  it('never matches undyed cloth', () => {
-    expect(scoreQuilt(quiltOf(solid(0), solid(1))).seams).toBe(0);
-  });
-
-  it('counts the dyed colours showing on a cloth', () => {
-    const rightHalf = [
-      { x: 0, y: -SIZE },
-      { x: SIZE, y: -SIZE },
-      { x: SIZE, y: SIZE },
-      { x: 0, y: SIZE },
-    ] as const;
-    const state = createGame(5, RULES_V10);
-    state.cloths[0] = { id: 0, layers: [{ dye: RED, covers: [] }, { dye: YELLOW, covers: [rightHalf] }], isQuilted: false };
-    expect(showingColours(state, 0).sort()).toEqual([mixOf(RED), ORANGE].sort());
+    expect(state.round).toBe(RULES_V11.rounds);
   });
 });
 
@@ -174,7 +197,7 @@ describe('random play', () => {
   it('survives 100 random games without an illegal move', () => {
     for (let seed = 1; seed <= 100; seed++) {
       const rng = new Random(seed);
-      let state = createGame(seed, RULES_V10);
+      let state = createGame(seed, RULES_V11);
       while (!state.isOver) state = applyMove(state, randomMove(state, rng));
       expect(state.isOver).toBe(true);
     }
@@ -184,9 +207,9 @@ describe('random play', () => {
 function randomMove(state: WorkshopState, rng: Random): WorkshopMove {
   const roll = rng.next();
   if (!state.hasSprayed && state.bench.length > 0 && roll < 0.6) {
-    const layout = state.bench.map((clothId) => at(clothId, rng.int(RULES_V10.benchSize + 1), rng.int(RULES_V10.benchSize + 1), rng.int(24)));
+    const layout = state.bench.map((clothId) => at(clothId, rng.int(RULES_V11.benchSize + 1), rng.int(RULES_V11.benchSize + 1), rng.int(24)));
     return { kind: 'spray', dye: rng.pick(DYES), layout };
   }
-  if (state.bench.length > 0 && roll < 0.8) return { kind: 'quilt', clothId: rng.pick(state.bench), slot: rng.pick(freeSlots(state)), turns: rng.int(4) };
+  if (state.bench.length > 0 && roll < 0.75) return { kind: 'deliver', clothId: rng.pick(state.bench), commissionId: rng.pick(openCommissions(state)).id };
   return { kind: 'endRound' };
 }

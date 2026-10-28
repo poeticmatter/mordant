@@ -1,21 +1,14 @@
 import { shuffle } from '../engine/rng.ts';
 import type { Dye } from '../engine/shades.ts';
-import { coversFrom, isInsideQuad, isInsideSquare, ROTATION_STEPS, type Placement, type Point, type Quad } from './geometry.ts';
+import { readCloth, type Cloth, type SprayLayer } from './cloth.ts';
+import { coversFrom, ROTATION_STEPS, type Placement } from './geometry.ts';
+import { dealObjectives, matchOf, starsFor, type Objective } from './objectives.ts';
 
 /**
  * Selvedge "Workshop" (v9+): lay blank cloths on a bench, overlapping and turned as you like, and spray
- * them. Whatever lies on top resists the dye, so every cloth builds up a pattern from its history.
- * Finished cloths are sewn into a quilt.
+ * them. Whatever lies on top keeps the dye off, so every cloth builds up a pattern from its history.
+ * From v11, finished cloths are delivered to commissions that ask for particular patterns.
  */
-
-/** The primaries soaked into a spot of cloth, as a bit set (`1 << dye` for each); 0 is undyed. */
-export type Mix = number;
-export const UNDYED: Mix = 0;
-export const BROWN: Mix = 0b111;
-
-export function mixOf(dye: Dye): Mix {
-  return 1 << dye;
-}
 
 export interface WorkshopConfig {
   version: string;
@@ -26,39 +19,21 @@ export interface WorkshopConfig {
   benchSize: number;
   handSize: number;
   rounds: number;
-  quiltWidth: number;
-  quiltHeight: number;
-  /** Each seam is judged at this many evenly spaced stitches; each matching stitch scores 1. */
-  stitchesPerSeam: number;
-  /** Points for a quilt square showing at least `colourfulMinimum` different dyed colours. */
-  colourfulBonus: number;
-  colourfulMinimum: number;
-  /** A colour counts as showing on a square once it covers at least this share of it. */
-  colourfulMinimumShare: number;
+  commissionCount: number;
+  /** Match needed for one, two and three stars. */
+  starThresholds: readonly [number, number, number];
 }
 
-/** One spray a cloth took: the dye, and where cloths above it kept the dye off (in its own coordinates). */
-export interface SprayLayer {
-  dye: Dye;
-  covers: Quad[];
-}
-
-export interface Cloth {
+export interface Commission {
   id: number;
-  /** Every spray the cloth has taken, oldest first. Dye never washes out, so this is its whole pattern. */
-  layers: SprayLayer[];
-  isQuilted: boolean;
-}
-
-export interface Patch {
-  clothId: number;
-  /** Quarter turns clockwise as sewn in. */
-  turns: number;
+  objective: Objective;
+  clothId: number | null;
+  stars: number | null;
 }
 
 export type WorkshopMove =
   | { kind: 'spray'; dye: Dye; /** Bottom first. */ layout: Placement[] }
-  | { kind: 'quilt'; clothId: number; slot: number; turns: number }
+  | { kind: 'deliver'; clothId: number; commissionId: number }
   | { kind: 'endRound' };
 
 export interface WorkshopState {
@@ -69,27 +44,28 @@ export interface WorkshopState {
   cloths: Cloth[];
   /** Cloths waiting to be drawn, top of the pile at the end. */
   deck: number[];
-  /** Cloths drawn this round and not yet sewn into the quilt. */
+  /** Cloths drawn this round and not yet delivered. */
   bench: number[];
   hasSprayed: boolean;
-  quilt: (Patch | null)[];
+  commissions: Commission[];
   isOver: boolean;
 }
 
 export class IllegalMoveError extends Error {}
 
 export function createGame(seed: number, config: WorkshopConfig): WorkshopState {
-  const cloths = Array.from({ length: config.clothCount }, (_, id): Cloth => ({ id, layers: [], isQuilted: false }));
+  const cloths = Array.from({ length: config.clothCount }, (_, id): Cloth => ({ id, layers: [], deliveredTo: null }));
+  const dealt = dealObjectives(config.commissionCount, seed >>> 0);
   const state: WorkshopState = {
     config,
     seed,
-    rngState: seed >>> 0,
+    rngState: dealt.rngState,
     round: 0,
     cloths,
     deck: cloths.map((cloth) => cloth.id),
     bench: [],
     hasSprayed: false,
-    quilt: new Array<Patch | null>(config.quiltWidth * config.quiltHeight).fill(null),
+    commissions: dealt.objectives.map((objective, id) => ({ id, objective, clothId: null, stars: null })),
     isOver: false,
   };
   startRoundInPlace(state);
@@ -103,18 +79,17 @@ export function cloneState(state: WorkshopState): WorkshopState {
     cloths: state.cloths.map((cloth) => ({ ...cloth, layers: cloth.layers.slice() })),
     deck: state.deck.slice(),
     bench: state.bench.slice(),
-    quilt: state.quilt.map((patch) => (patch === null ? null : { ...patch })),
+    commissions: state.commissions.map((commission) => ({ ...commission })),
   };
 }
 
-/** The dyes at a point of a cloth, in its own coordinates. */
-export function colourAt(cloth: Cloth, size: number, point: Point): Mix {
-  if (!isInsideSquare(size, point)) return UNDYED;
-  let mix = UNDYED;
-  for (const layer of cloth.layers) {
-    if (!layer.covers.some((quad) => isInsideQuad(quad, point))) mix |= mixOf(layer.dye);
-  }
-  return mix;
+/** How well a cloth meets a commission right now, from 0 to 1. */
+export function matchFor(state: WorkshopState, clothId: number, commission: Commission): number {
+  return matchOf(commission.objective, readCloth(state.cloths[clothId], state.config.clothSize));
+}
+
+export function starsForMatch(state: WorkshopState, match: number): number {
+  return starsFor(match, state.config.starThresholds);
 }
 
 function isOnBench(state: WorkshopState, placement: Placement): boolean {
@@ -127,10 +102,11 @@ function isOnBench(state: WorkshopState, placement: Placement): boolean {
 export function illegalReason(state: WorkshopState, move: WorkshopMove): string | null {
   if (state.isOver) return 'the game is over';
   if (move.kind === 'endRound') return null;
-  if (move.kind === 'quilt') {
+  if (move.kind === 'deliver') {
     if (!state.bench.includes(move.clothId)) return 'that cloth is not on the bench';
-    if (state.quilt[move.slot] !== null) return 'that quilt slot is taken';
-    if (!Number.isInteger(move.turns) || move.turns < 0 || move.turns > 3) return 'turns must be 0–3';
+    const commission = state.commissions[move.commissionId];
+    if (!commission) return 'no such commission';
+    if (commission.clothId !== null) return 'that commission is already filled';
     return null;
   }
   if (state.hasSprayed) return 'you already sprayed this round';
@@ -156,11 +132,8 @@ export function applyMoveInPlace(state: WorkshopState, move: WorkshopMove): void
     case 'spray':
       sprayInPlace(state, move.dye, move.layout);
       return;
-    case 'quilt':
-      state.quilt[move.slot] = { clothId: move.clothId, turns: move.turns };
-      state.cloths[move.clothId].isQuilted = true;
-      state.bench.splice(state.bench.indexOf(move.clothId), 1);
-      if (state.quilt.every((patch) => patch !== null)) state.isOver = true;
+    case 'deliver':
+      deliverInPlace(state, move.clothId, move.commissionId);
       return;
     case 'endRound':
       endRoundInPlace(state);
@@ -175,6 +148,15 @@ export function sprayLayers(state: WorkshopState, dye: Dye, layout: readonly Pla
 function sprayInPlace(state: WorkshopState, dye: Dye, layout: readonly Placement[]): void {
   for (const [clothId, layer] of sprayLayers(state, dye, layout)) state.cloths[clothId].layers.push(layer);
   state.hasSprayed = true;
+}
+
+function deliverInPlace(state: WorkshopState, clothId: number, commissionId: number): void {
+  const commission = state.commissions[commissionId];
+  commission.clothId = clothId;
+  commission.stars = starsForMatch(state, matchFor(state, clothId, commission));
+  state.cloths[clothId].deliveredTo = commissionId;
+  state.bench.splice(state.bench.indexOf(clothId), 1);
+  if (state.commissions.every((other) => other.clothId !== null)) state.isOver = true;
 }
 
 function endRoundInPlace(state: WorkshopState): void {
@@ -196,6 +178,10 @@ function startRoundInPlace(state: WorkshopState): void {
   state.hasSprayed = false;
 }
 
-export function freeSlots(state: WorkshopState): number[] {
-  return state.quilt.flatMap((patch, slot) => (patch === null ? [slot] : []));
+export function totalStars(state: WorkshopState): number {
+  return state.commissions.reduce((sum, commission) => sum + (commission.stars ?? 0), 0);
+}
+
+export function openCommissions(state: WorkshopState): Commission[] {
+  return state.commissions.filter((commission) => commission.clothId === null);
 }
