@@ -2,8 +2,10 @@ import { useState } from 'react';
 import { RULES_V8 } from '../selvedge/tags/config.ts';
 import { shippedCount } from '../selvedge/tags/engine.ts';
 import { Board } from './Board.tsx';
+import { formatLogForExport } from './gameLog.ts';
 import { MenuSheet } from './MenuSheet.tsx';
 import { RulesPage } from './RulesPage.tsx';
+import { tagsMoveCodec } from './tagsMoveCodec.ts';
 import { ClothsSheet, FinalTally, InspectionSheet } from './Sheets.tsx';
 import { useGameSession } from './useGameSession.ts';
 
@@ -61,7 +63,9 @@ export function App() {
       {view === 'menu' && (
         <MenuSheet
           seed={game.seed}
-          logs={session.logs}
+          exportText={formatLogForExport(session.logs, tagsMoveCodec)}
+          finishedCount={session.logs.filter((log) => log.finalScore !== null).length}
+          deckLabel="Your cloths"
           onNewGame={(seed) => {
             session.newGame(seed);
             setView('game');

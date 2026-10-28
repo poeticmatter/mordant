@@ -2,10 +2,10 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { applyMove, shippedCount, type HangMove, type TagsConfig, type TagsMove, type TagsState } from '../selvedge/tags/engine.ts';
 import { startLog, withEvent, withFinalScore, withMove, type GameLog } from './gameLog.ts';
 import { inspectionAfter, randomSeed, replayGame, touchedBy, type InspectionReport } from './session.ts';
-import { loadLogs, saveLogs } from './storage.ts';
+import { LOG_KEYS, loadLogs, saveLogs } from './storage.ts';
 
 interface SessionState {
-  logs: GameLog[];
+  logs: GameLog<TagsMove>[];
   game: TagsState;
   /** Cloths that took colour from the last hang, so they can flash once. */
   justTouched: number[];
@@ -13,7 +13,7 @@ interface SessionState {
 }
 
 function resumeOrStart(config: TagsConfig): SessionState {
-  const logs = loadLogs();
+  const logs = loadLogs<TagsMove>(LOG_KEYS.tags);
   const current = logs[logs.length - 1];
   if (current && current.finalScore === null && current.rules === config.version) {
     try {
@@ -26,12 +26,12 @@ function resumeOrStart(config: TagsConfig): SessionState {
   return startFresh(config, logs, randomSeed());
 }
 
-function startFresh(config: TagsConfig, logs: GameLog[], seed: number): SessionState {
+function startFresh(config: TagsConfig, logs: GameLog<TagsMove>[], seed: number): SessionState {
   const keptLogs = logs.filter((log) => log.finalScore !== null || log.moves.length > 0);
-  return { logs: [...keptLogs, startLog(config.version, seed)], game: replayGame(seed, [], config), justTouched: [], inspection: null };
+  return { logs: [...keptLogs, startLog<TagsMove>(config.version, seed)], game: replayGame(seed, [], config), justTouched: [], inspection: null };
 }
 
-function replaceCurrentLog(logs: GameLog[], log: GameLog): GameLog[] {
+function replaceCurrentLog(logs: GameLog<TagsMove>[], log: GameLog<TagsMove>): GameLog<TagsMove>[] {
   return [...logs.slice(0, -1), log];
 }
 
@@ -41,7 +41,7 @@ export function useGameSession(config: TagsConfig) {
   const [previewCell, setPreviewCell] = useState<number | null>(null);
   const [previewTurns, setPreviewTurns] = useState(0);
 
-  useEffect(() => saveLogs(session.logs), [session.logs]);
+  useEffect(() => saveLogs(LOG_KEYS.tags, session.logs), [session.logs]);
 
   const play = useCallback((move: TagsMove) => {
     setSession((previous) => {

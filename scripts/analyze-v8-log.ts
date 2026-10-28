@@ -18,6 +18,7 @@ import {
   type TagsState,
 } from '../src/selvedge/tags/engine.ts';
 import { parseExportedMoves } from '../src/ui/gameLog.ts';
+import { tagsMoveCodec } from '../src/ui/tagsMoveCodec.ts';
 
 const CONFIGS = { v8: RULES_V8 } as const;
 const MIX_LETTERS = ['', 'R', 'Y', 'O', 'B', 'P', 'G', 'n'];
@@ -63,7 +64,7 @@ games.forEach((text, gameIndex) => {
   const config = CONFIGS[/rules=(\w+)/.exec(header)![1] as keyof typeof CONFIGS];
   if (!config) return;
   const times = text.split('\n').filter((line) => line.startsWith('m ')).map((line) => Number(line.trim().split(' ').at(-1)));
-  const moves = parseExportedMoves(text);
+  const moves = parseExportedMoves(text, tagsMoveCodec);
   let state = createGame(seed, config);
   console.log(`\n=== game ${gameIndex + 1} seed ${seed} (${header.trim()})`);
   let previousAt = 0;

@@ -1,10 +1,11 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { RULES_V8 } from '../selvedge/tags/config.ts';
-import { applyMove, createGame, legalMoves, type HangMove, type TagsState } from '../selvedge/tags/engine.ts';
+import { applyMove, createGame, legalMoves, type HangMove, type TagsMove, type TagsState } from '../selvedge/tags/engine.ts';
 import { Board } from './Board.tsx';
 import { formatLogForExport, parseExportedMoves, startLog, withFinalScore, withMove } from './gameLog.ts';
 import { RulesPage } from './RulesPage.tsx';
+import { tagsMoveCodec } from './tagsMoveCodec.ts';
 import { inspectionAfter, replayGame, type InspectionReport } from './session.ts';
 import { ClothsSheet, FinalTally, InspectionSheet } from './Sheets.tsx';
 
@@ -97,20 +98,20 @@ describe('exported logs', () => {
   it('replay set-aside moves', () => {
     const start = createGame(77, RULES_V8);
     const move = { kind: 'setAside' as const, clothId: start.hand[0] };
-    const log = withMove(startLog(RULES_V8.version, 77), move);
-    expect(JSON.stringify(replayGame(77, parseExportedMoves(formatLogForExport([log])), RULES_V8))).toBe(JSON.stringify(applyMove(start, move)));
+    const log = withMove(startLog<TagsMove>(RULES_V8.version, 77), move);
+    expect(JSON.stringify(replayGame(77, parseExportedMoves(formatLogForExport([log], tagsMoveCodec), tagsMoveCodec), RULES_V8))).toBe(JSON.stringify(applyMove(start, move)));
   });
 
   it('replay to the exact game that was played, turns and early inspections included', () => {
     let game = createGame(4242, RULES_V8);
-    let log = startLog(RULES_V8.version, 4242);
+    let log = startLog<TagsMove>(RULES_V8.version, 4242);
     while (!game.isOver) {
       const moves = legalMoves(game);
       const move = game.seasonHangs.length === 3 && moves.some((m) => m.kind === 'inspect') ? { kind: 'inspect' as const } : moves[moves.length - 1 - (game.turn % 3)];
       log = withMove(log, move);
       game = applyMove(game, move);
     }
-    const exported = formatLogForExport([withFinalScore(log, 0)]);
-    expect(JSON.stringify(replayGame(4242, parseExportedMoves(exported), RULES_V8))).toBe(JSON.stringify(game));
+    const exported = formatLogForExport([withFinalScore(log, 0)], tagsMoveCodec);
+    expect(JSON.stringify(replayGame(4242, parseExportedMoves(exported, tagsMoveCodec), RULES_V8))).toBe(JSON.stringify(game));
   });
 });

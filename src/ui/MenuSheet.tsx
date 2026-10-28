@@ -1,9 +1,11 @@
 import { useState } from 'react';
-import { formatLogForExport, type GameLog } from './gameLog.ts';
 
 interface MenuSheetProps {
   seed: number;
-  logs: readonly GameLog[];
+  /** The playtest log as pasteable text. */
+  exportText: string;
+  finishedCount: number;
+  deckLabel: string;
   onNewGame: (seed?: number) => void;
   onOpenRules: () => void;
   onOpenDeck: () => void;
@@ -12,10 +14,9 @@ interface MenuSheetProps {
 
 type CopyStatus = 'idle' | 'copied' | 'manual';
 
-export function MenuSheet({ seed, logs, onNewGame, onOpenRules, onOpenDeck, onClose }: MenuSheetProps) {
+export function MenuSheet({ seed, exportText, finishedCount, deckLabel, onNewGame, onOpenRules, onOpenDeck, onClose }: MenuSheetProps) {
   const [seedText, setSeedText] = useState('');
   const [copyStatus, setCopyStatus] = useState<CopyStatus>('idle');
-  const exportText = formatLogForExport(logs);
 
   async function copyLog() {
     try {
@@ -29,7 +30,6 @@ export function MenuSheet({ seed, logs, onNewGame, onOpenRules, onOpenDeck, onCl
 
   const parsedSeed = Number.parseInt(seedText, 10);
   const hasValidSeed = Number.isInteger(parsedSeed) && parsedSeed >= 0;
-  const finishedCount = logs.filter((log) => log.finalScore !== null).length;
 
   return (
     <div className="fixed inset-0 z-40 flex items-end justify-center bg-slate-deep/80 sm:items-center" role="dialog" aria-modal aria-labelledby="menu-title">
@@ -41,7 +41,7 @@ export function MenuSheet({ seed, logs, onNewGame, onOpenRules, onOpenDeck, onCl
 
         <div className="mt-4 grid grid-cols-2 gap-2">
           <button type="button" onClick={onOpenRules} className="rounded-sm bg-slate-raised py-3 font-semibold">Rules</button>
-          <button type="button" onClick={onOpenDeck} className="rounded-sm bg-slate-raised py-3 font-semibold">Your cloths</button>
+          <button type="button" onClick={onOpenDeck} className="rounded-sm bg-slate-raised py-3 font-semibold">{deckLabel}</button>
         </div>
 
         <h3 className="mt-6 font-semibold">Playtest log</h3>

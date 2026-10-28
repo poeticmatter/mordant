@@ -1,69 +1,53 @@
-import type { TagsMove } from '../selvedge/tags/engine.ts';
-
-export interface LoggedMove {
-  move: TagsMove;
+export interface LoggedMove<M> {
+  move: M;
   /** Milliseconds since the game started. */
   atMs: number;
 }
 
-export interface GameLog {
+/** One game's playtest log. `M` is the game's move type; each game supplies its own text codec. */
+export interface GameLog<M> {
   rules: string;
   seed: number;
   startedAt: string;
-  moves: LoggedMove[];
-  /** Cloths shipped, once the game is over. */
+  moves: LoggedMove<M>[];
+  /** Final score, once the game is over. */
   finalScore: number | null;
   /** UI events (rules opened, menu opened, …) that help explain hesitation. */
   events: { kind: string; atMs: number }[];
 }
 
-export function startLog(rules: string, seed: number): GameLog {
+export interface MoveCodec<M> {
+  encode(move: M): string;
+  decode(text: string): M;
+}
+
+export function startLog<M>(rules: string, seed: number): GameLog<M> {
   return { rules, seed, startedAt: new Date().toISOString(), moves: [], finalScore: null, events: [] };
 }
 
-export function elapsedMs(log: GameLog): number {
+export function elapsedMs<M>(log: GameLog<M>): number {
   return Date.now() - Date.parse(log.startedAt);
 }
 
-export function withMove(log: GameLog, move: TagsMove): GameLog {
+export function withMove<M>(log: GameLog<M>, move: M): GameLog<M> {
   return { ...log, moves: [...log.moves, { move, atMs: elapsedMs(log) }] };
 }
 
-export function withEvent(log: GameLog, kind: string): GameLog {
+export function withEvent<M>(log: GameLog<M>, kind: string): GameLog<M> {
   return { ...log, events: [...log.events, { kind, atMs: elapsedMs(log) }] };
 }
 
-export function withFinalScore(log: GameLog, finalScore: number): GameLog {
+export function withFinalScore<M>(log: GameLog<M>, finalScore: number): GameLog<M> {
   return { ...log, finalScore };
 }
 
-/** `h <cloth> <peg> <quarter turns>` for a hang, `a <cloth>` for setting a cloth aside, `i` for calling the inspection early. */
-export function encodeMove(move: TagsMove): string {
-  switch (move.kind) {
-    case 'hang':
-      return `h ${move.clothId} ${move.cell} ${move.turns}`;
-    case 'setAside':
-      return `a ${move.clothId}`;
-    case 'inspect':
-      return 'i';
-  }
-}
-
-export function decodeMove(text: string): TagsMove {
-  const [kind, clothId, cell, turns] = text.trim().split(' ');
-  if (kind === 'i') return { kind: 'inspect' };
-  if (kind === 'h') return { kind: 'hang', clothId: Number(clothId), cell: Number(cell), turns: Number(turns) };
-  if (kind === 'a') return { kind: 'setAside', clothId: Number(clothId) };
-  throw new Error(`Unrecognised logged move "${text}"`);
-}
-
 /** Compact text a playtester can paste into chat. One move per line: `m <move> <ms>`. */
-export function formatLogForExport(logs: readonly GameLog[]): string {
+export function formatLogForExport<M>(logs: readonly GameLog<M>[], codec: MoveCodec<M>): string {
   return logs
     .map((log) =>
       [
         `# game rules=${log.rules} seed=${log.seed} started=${log.startedAt} final=${log.finalScore ?? 'unfinished'}`,
-        ...log.moves.map(({ move, atMs }) => `m ${encodeMove(move)} ${atMs}`),
+        ...log.moves.map(({ move, atMs }) => `m ${codec.encode(move)} ${atMs}`),
         ...log.events.map(({ kind, atMs }) => `e ${kind} ${atMs}`),
       ].join('\n'),
     )
@@ -71,9 +55,9 @@ export function formatLogForExport(logs: readonly GameLog[]): string {
 }
 
 /** Moves from an exported log, for replaying a game exactly. */
-export function parseExportedMoves(text: string): TagsMove[] {
+export function parseExportedMoves<M>(text: string, codec: MoveCodec<M>): M[] {
   return text
     .split('\n')
     .filter((line) => line.startsWith('m '))
-    .map((line) => decodeMove(line.slice(2).replace(/\s\d+$/, '')));
+    .map((line) => codec.decode(line.slice(2).replace(/\s\d+$/, '')));
 }

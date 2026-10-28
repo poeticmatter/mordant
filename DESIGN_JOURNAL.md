@@ -818,3 +818,56 @@ Observations:
   the 10–20 target.
 - The Planner disagrees most at season openings (ranks 50–80 of 80–110 in season 3), where the hand holds
   carried cloths.
+
+### Debrief 4 — answers
+1. **Feel:** "Not as interesting, or maybe I am starting to understand more about the puzzle. Each tile
+   effectively says 'I want a tile of colour X next to me'. It's not much of a puzzle."
+2. **Mixing:** intuitive.
+3. **Tags:** easy to read.
+4. **The empty last peg:** "couldn't play a cloth without making it worse, at least that's what I thought."
+5. **The restart:** felt they'd made a mistake.
+
+**Reading (mine, before the handover).** v8 fixed what it set out to fix (everything in the deck,
+legible mixing, readable tags), but the puzzle collapsed into independent local constraints.
+- Orientation-free tags made turning pointless: 2 turns in 46 hangs.
+- Every season ended in damage avoidance rather than a choice.
+- **Where the metrics misled me:** the proxy beating Greedy by 2 SD read as "reachable depth". It also
+  meant simple local rules were nearly enough, i.e. a shallow puzzle. "Close decisions" measured
+  rollout value gaps, not interesting choices.
+
+## Design handover — the playtester's direction
+The playtester stopped my design line and is now guiding. Their idea, in their words:
+- "A workshop area where you can place the squares (or rectangles) and you can rotate them and overlap
+  them. Then you spray everything with a colour and shuffle them back into the deck. You could make all
+  sorts of patterns."
+- Not completely freeform: rotation in 15° steps and snapped positions, so patterns stay matchable.
+- When a square is ready, it goes into a **quilt**, scored by scoring rules, orders or a combination.
+  They like that kind of scoring less in solo play, but want to see and play it.
+
+This is resist dyeing: whatever lies on top masks what lies beneath. Each card's pattern is its full
+history of sprays and maskings, which is a much stronger form of memory than v6–v8 had.
+
+### Iteration 9 — v9 "Workshop": first build of the playtester's design
+Choices I made where the brief left room, all meant to be changed:
+- **Cloths:** 12 blank squares, each a 12 × 12 grid of threads. Squares only for now; rectangles later.
+- **Workshop:** a 36 × 36 bench. Positions snap to one thread, rotation to 15°. A cloth placed later lies
+  on top.
+- **A round:** draw 4, arrange them on the bench, spray red, yellow or blue. Uncovered threads take the
+  dye and mix as in v8 (all three make brown). Before the round ends, move any cloth on the bench into
+  the quilt. The rest shuffle back. 8 rounds.
+- **Quilt:** 3 × 3 squares, each placed in any free slot at a quarter-turn of your choice, for good.
+- **Scoring, a first pass with two rules:**
+  - *Seams:* 1 point per pair of touching threads across a seam with the same dyed colour. Brown and
+    undyed match nothing.
+  - *Colourful squares:* 5 points per square showing at least three different colours.
+- **No bots or metrics this round.** The move space (snapped positions × 24 rotations × stacking order
+  × 4 cloths) needs a different bot design: sampling layouts, not enumerating moves. This build is for
+  the playtester to see and play first.
+
+**Build notes (v9).**
+- Engine: `src/workshop/` (geometry, engine, scoring), with 18 tests including 200 random games.
+- UI: `src/workshop/ui/`. A pointer-event drag on an SVG bench snaps to whole threads. Turning, stacking
+  and sewing are buttons, so nothing depends on hover.
+- The playtest log, storage and menu are now shared by both games (`MoveCodec` per game).
+- v8 stays playable at `#v8`.
+- Not seen in a browser yet; render tests only.
