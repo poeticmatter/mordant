@@ -794,3 +794,27 @@ for a one-move player, so the target moved to 13.
   at a glance, and whether turning is a pleasure or a chore.
 
 **Verdict: ship v8 to playtest round 4.**
+
+### Playtest 4 — log reading (v8)
+Three games:
+- seed 966240, final **8**, 8.2 min;
+- seed 710722, abandoned after 3 hangs and restarted *on the same seed*;
+- seed 710722 again, final **6**, 4.7 min.
+
+The target is 13. The proxy averages 10.3, so the human is *below* the one-move proxy here, unlike v6/v7
+where they matched or beat it. Replayed with `scripts/analyze-v8-log.ts` (budget 400).
+
+| Game | Season ships | Spoils caused | Turns used | Set-asides |
+|---|---|---|---|---|
+| 1 | 3, 2, 3 | 4 | 2 (one on an already spoiled cloth) | 0 |
+| 3 | 2, 1, 3 | 3 | 0 | 0 |
+
+Observations:
+- **Every season ended by choice with exactly one peg empty** (8 hangs, then inspect), in all six seasons.
+- **Turning is almost unused:** 2 turns in 46 hangs. Either it isn't needed, isn't noticed, or costs too
+  much to think about.
+- **Spoiling happens, and spoiled cloths keep getting hung** (three times in game 1). None were set aside.
+- **Faster thinking:** 5–25 s per hang after the first (135 s, reading). Games run 5–8 minutes, short of
+  the 10–20 target.
+- The Planner disagrees most at season openings (ranks 50–80 of 80–110 in season 3), where the hand holds
+  carried cloths.
